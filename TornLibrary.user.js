@@ -1854,6 +1854,30 @@ TornLibrary.ui = {
         this._stylesAdded = true;
     },
 
+    _initSidebarListener() {
+        if (this._sidebarListenerAttached) return;
+
+        console.log('[TornLibrary] Attaching permanent sidebar click listener to document.body.');
+        document.body.addEventListener('click', (event) => {
+            // Find the closest parent that is one of our links
+            const linkElement = event.target.closest('.tl-sidebar-link');
+            if (!linkElement) {
+                return; // The click was not on one of our links.
+            }
+
+            // Prevent the default link behavior (e.g., navigating to '#')
+            event.preventDefault();
+
+            const linkId = linkElement.id;
+            if (this._sidebarCallbacks.has(linkId)) {
+                console.log(`[TornLibrary] Delegated click detected for link ID: "${linkId}". Firing callback.`);
+                const callback = this._sidebarCallbacks.get(linkId);
+                callback(event); // Execute the stored callback function
+            }
+        });
+        
+        this._sidebarListenerAttached = true;
+    },
 
     createPopup({ title, content, id = '', maxWidth = '600px' }) {
         // This function is unchanged
@@ -1930,46 +1954,33 @@ TornLibrary.ui = {
      */
     addSidebarLink({ id, label, onClick, icon }) {
         this._addStyles();
+        this._initSidebarListener(); // Ensure our single, permanent listener is attached.
+        
+        // Store the callback function, associating it with the unique ID.
+        this._sidebarCallbacks.set(id, onClick);
 
-        // This function creates a brand new element with a fresh event listener.
-        const createLinkElement = () => {
-            const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
-            
-            const linkContainer = document.createElement('div');
-            linkContainer.id = id;
-            linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
-            linkContainer.innerHTML = `
-                <div class="area-row___iBD8N">
-                    <a href="#" class="desktopLink___SG2RU">
-                        <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span></span>
-                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
-                    </a>
-                </div>`;
-            
-            const linkAnchor = linkContainer.querySelector('a');
-            if (linkAnchor) {
-                linkAnchor.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    onClick(e);
-                });
-            }
-            return linkContainer;
-        };
-
-        // This function checks if the link exists and adds a new one if it doesn't.
+        // The logic to add/re-add the VISUAL element remains the same.
         const ensureLinkExists = (sidebar) => {
             if (!document.getElementById(id)) {
-                const newLink = createLinkElement(); // Create a fresh element every time.
-                sidebar.appendChild(newLink);
+                const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09-.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
+                const linkContainer = document.createElement('div');
+                linkContainer.id = id;
+                linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
+                // NOTE: No event listener is attached here anymore!
+                linkContainer.innerHTML = `
+                    <div class="area-row___iBD8N">
+                        <a href="#" class="desktopLink___SG2RU">
+                            <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span></span>
+                            <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
+                        </a>
+                    </div>`;
+                sidebar.appendChild(linkContainer);
             }
         };
 
-        // Find the sidebar and then set up a permanent guard.
         TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
             ensureLinkExists(sidebar);
-            const observer = new MutationObserver(() => {
-                ensureLinkExists(sidebar);
-            });
+            const observer = new MutationObserver(() => ensureLinkExists(sidebar));
             observer.observe(sidebar, { childList: true });
         });
     },
