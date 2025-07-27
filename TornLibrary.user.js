@@ -1612,8 +1612,34 @@ TornLibrary.dom = {
     /**
      * DOM Manipulation, Observation, and Interaction Utilities.
      */
+
+    /**
+     * Waits for an element to exist using a polling mechanism, which is more reliable
+     * for modern frameworks than a simple MutationObserver.
+     * @param {string} selector - The CSS selector of the element to wait for.
+     * @param {function(HTMLElement): void} callback - Function to execute once the element is found.
+     * @param {number} [timeout=10000] - The maximum time in milliseconds to wait.
+     */
+    onElementReady(selector, callback, timeout = 10000) {
+        let intervalId = null;
+        const startTime = Date.now();
+
+        intervalId = setInterval(() => {
+            const element = document.querySelector(selector);
+            if (element) {
+                clearInterval(intervalId);
+                callback(element);
+            } else if (Date.now() - startTime > timeout) {
+                // Stop after the timeout to prevent an infinite loop
+                clearInterval(intervalId);
+                console.warn(`TornLibrary.dom.onElementReady: Timed out waiting for selector "${selector}"`);
+            }
+        }, 250); // Check for the element every 250ms
+    },
+
     /**
      * Waits for a specific element to appear in the DOM, then executes a callback.
+     * Note: For initial page load elements, onElementReady() is often more reliable.
      * @param {string} selector - The CSS selector of the element to wait for.
      * @param {function(HTMLElement): void} callback - Function to execute once the element is found.
      * @param {object} [options={}] - Configuration options.
@@ -1639,10 +1665,7 @@ TornLibrary.dom = {
         return observer;
     },
 
-    /**
-     * Injects a string of CSS into the document's <head>.
-     * @param {string} css - The CSS rules to add to the page.
-     */
+    // --- Other functions in TornLibrary.dom remain the same ---
     addStyle(css) {
         if (typeof GM_addStyle === 'function') {
             GM_addStyle(css);
@@ -1657,24 +1680,11 @@ TornLibrary.dom = {
         }
     },
 
-    /**
-     * Programmatically triggers an event on a DOM element. Essential for interacting
-     * with frameworks like React where direct value changes are not always detected.
-     * @param {HTMLElement} element - The element to dispatch the event on.
-     * @param {string} eventName - The name of the event to trigger (e.g., 'click', 'input', 'keyup').
-     * @param {object} [options={bubbles: true}] - Options for the event constructor.
-     */
     triggerEvent(element, eventName, options = { bubbles: true }) {
         const event = new Event(eventName, options);
         element.dispatchEvent(event);
     },
 
-    /**
-     * Repeatedly executes a callback function until it returns true or a timeout is reached.
-     * @param {function(): boolean} callback - The function to execute. Should return true to stop polling.
-     * @param {number} interval - The time in milliseconds between each execution.
-     * @param {number} [timeout=10000] - The maximum time in milliseconds to continue polling.
-     */
     poll(callback, interval, timeout = 10000) {
         const poller = setInterval(() => {
             if (callback()) clearInterval(poller);
@@ -1682,13 +1692,6 @@ TornLibrary.dom = {
         setTimeout(() => clearInterval(poller), timeout);
     },
 
-    /**
-     * Continuously watches for new nodes matching a selector and fires a callback for each.
-     * @param {string} selector - The CSS selector for nodes to watch for.
-     * @param {function(HTMLElement): void} callback - The function to execute for each new node.
-     * @param {HTMLElement} [target=document.body] - The root element to observe.
-     * @returns {MutationObserver} The active observer instance.
-     */
     onNodeAdded(selector, callback, target = document.body) {
         const observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
@@ -1706,6 +1709,7 @@ TornLibrary.dom = {
         return observer;
     }
 };
+
 
 TornLibrary.storage = {
     /**
@@ -2002,17 +2006,16 @@ TornLibrary.ui = {
     addSidebarLink({ id, label, onClick, icon }) {
         this._addStyles();
 
-        // Default gear icon if none is provided
         const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
 
-        // Use the library's DOM utility to wait for the sidebar to be ready.
-        TornLibrary.dom.waitForElement('.toggle-content___BJ9Q9', (sidebar) => {
-            // Prevent adding the link if it already exists
+        // ***** THIS IS THE CRITICAL CHANGE *****
+        // Use the new polling-based function for reliability.
+        TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
             if (document.getElementById(id)) return;
 
             const linkContainer = document.createElement('div');
             linkContainer.id = id;
-            linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link'; // Added custom class for styling
+            linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
 
             linkContainer.innerHTML = `
                 <div class="area-row___iBD8N">
@@ -2028,12 +2031,11 @@ TornLibrary.ui = {
             const linkElement = linkContainer.querySelector('a');
             if (linkElement) {
                 linkElement.addEventListener('click', (event) => {
-                    event.preventDefault(); // Stop the link from navigating
+                    event.preventDefault();
                     onClick(event);
                 });
             }
 
-            // Append the new link to the end of the sidebar
             sidebar.appendChild(linkContainer);
         });
     }
