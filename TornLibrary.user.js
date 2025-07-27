@@ -1621,32 +1621,32 @@ TornLibrary.dom = {
      * @param {number} [timeout=10000] - The maximum time in milliseconds to wait.
      */
     onElementReady(selector, callback, timeout = 10000) {
+        console.log(`[TornLibrary.dom.onElementReady] Starting to poll for selector: "${selector}"`);
         let intervalId = null;
+        let checks = 0;
         const startTime = Date.now();
 
         intervalId = setInterval(() => {
+            checks++;
             const element = document.querySelector(selector);
+            
+            // Log every 2 seconds to show it's still running, without spamming the console
+            if (checks % 8 === 1) {
+                console.log(`[TornLibrary.dom.onElementReady] Polling for "${selector}"... (Check #${checks})`);
+            }
+
             if (element) {
+                console.info(`✔️ [TornLibrary.dom.onElementReady] Found element for selector "${selector}" after ${Date.now() - startTime}ms.`, element);
                 clearInterval(intervalId);
                 callback(element);
             } else if (Date.now() - startTime > timeout) {
-                // Stop after the timeout to prevent an infinite loop
+                console.error(`❌ [TornLibrary.dom.onElementReady] Timed out after ${timeout}ms waiting for selector: "${selector}". The element was never found.`);
                 clearInterval(intervalId);
-                console.warn(`TornLibrary.dom.onElementReady: Timed out waiting for selector "${selector}"`);
             }
-        }, 250); // Check for the element every 250ms
+        }, 250); // Check every 250ms
     },
 
-    /**
-     * Waits for a specific element to appear in the DOM, then executes a callback.
-     * Note: For initial page load elements, onElementReady() is often more reliable.
-     * @param {string} selector - The CSS selector of the element to wait for.
-     * @param {function(HTMLElement): void} callback - Function to execute once the element is found.
-     * @param {object} [options={}] - Configuration options.
-     * @param {HTMLElement} [options.target=document.body] - The node to observe for changes.
-     * @param {boolean} [options.disconnect=true] - Whether to stop observing after the element is found.
-     * @returns {MutationObserver|null} The observer instance or null if the element already existed.
-     */
+    // --- Other functions in TornLibrary.dom remain the same ---
     waitForElement(selector, callback, options = {}) {
         const { target = document.body, disconnect = true } = options;
         const existingElement = document.querySelector(selector);
@@ -1664,34 +1664,25 @@ TornLibrary.dom = {
         observer.observe(target, { childList: true, subtree: true });
         return observer;
     },
-
-    // --- Other functions in TornLibrary.dom remain the same ---
     addStyle(css) {
-        if (typeof GM_addStyle === 'function') {
-            GM_addStyle(css);
-        } else {
-            const head = document.head || document.getElementsByTagName('head')[0];
-            if (head) {
-                const style = document.createElement('style');
-                style.type = 'text/css';
-                style.textContent = css;
-                head.appendChild(style);
-            }
+        if (typeof GM_addStyle === 'function') GM_addStyle(css);
+        else {
+            const style = document.createElement('style');
+            style.type = 'text/css';
+            style.textContent = css;
+            document.head.appendChild(style);
         }
     },
-
     triggerEvent(element, eventName, options = { bubbles: true }) {
         const event = new Event(eventName, options);
         element.dispatchEvent(event);
     },
-
     poll(callback, interval, timeout = 10000) {
         const poller = setInterval(() => {
             if (callback()) clearInterval(poller);
         }, interval);
         setTimeout(() => clearInterval(poller), timeout);
     },
-
     onNodeAdded(selector, callback, target = document.body) {
         const observer = new MutationObserver((mutations) => {
             for (const mutation of mutations) {
@@ -1709,7 +1700,6 @@ TornLibrary.dom = {
         return observer;
     }
 };
-
 
 TornLibrary.storage = {
     /**
@@ -2004,39 +1994,50 @@ TornLibrary.ui = {
      * @param {string} [options.icon] - Optional SVG HTML string for the icon.
      */
     addSidebarLink({ id, label, onClick, icon }) {
+        console.log(`[TornLibrary.ui.addSidebarLink] Preparing to add link: "${label}"`);
         this._addStyles();
 
-        const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
+        const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
 
-        // ***** THIS IS THE CRITICAL CHANGE *****
         // Use the new polling-based function for reliability.
         TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
-            if (document.getElementById(id)) return;
+            console.log(`[TornLibrary.ui.addSidebarLink] "onElementReady" callback has fired for the sidebar. Now attempting to add link: "${label}"`);
+            
+            try {
+                if (document.getElementById(id)) {
+                    console.warn(`[TornLibrary.ui.addSidebarLink] Link with ID "${id}" already exists. Aborting.`);
+                    return;
+                }
 
-            const linkContainer = document.createElement('div');
-            linkContainer.id = id;
-            linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
+                const linkContainer = document.createElement('div');
+                linkContainer.id = id;
+                linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
 
-            linkContainer.innerHTML = `
-                <div class="area-row___iBD8N">
-                    <a href="#" class="desktopLink___SG2RU">
-                        <span class="svgIconWrap___AMIqR">
-                            <span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span>
-                        </span>
-                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
-                    </a>
-                </div>
-            `;
+                linkContainer.innerHTML = `
+                    <div class="area-row___iBD8N">
+                        <a href="#" class="desktopLink___SG2RU">
+                            <span class="svgIconWrap___AMIqR">
+                                <span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span>
+                            </span>
+                            <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
+                        </a>
+                    </div>
+                `;
 
-            const linkElement = linkContainer.querySelector('a');
-            if (linkElement) {
-                linkElement.addEventListener('click', (event) => {
-                    event.preventDefault();
-                    onClick(event);
-                });
+                const linkElement = linkContainer.querySelector('a');
+                if (linkElement) {
+                    linkElement.addEventListener('click', (event) => {
+                        event.preventDefault();
+                        onClick(event);
+                    });
+                }
+
+                sidebar.appendChild(linkContainer);
+                console.info(`✔️ [TornLibrary.ui.addSidebarLink] Successfully appended link "${label}" to the sidebar.`);
+
+            } catch (error) {
+                console.error(`❌ [TornLibrary.ui.addSidebarLink] An error occurred while trying to append the link to the sidebar.`, error);
             }
-
-            sidebar.appendChild(linkContainer);
         });
     }
 };
