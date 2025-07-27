@@ -1852,17 +1852,18 @@ TornLibrary.ui = {
     _addStyles() {
         if (this._stylesAdded) return;
         TornLibrary.dom.addStyle(`
+            /* --- Popup & Notification Styles (Unchanged) --- */
             .tl-popup-overlay {
                 position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0,0,0,0.7);
-                display: flex; justify-content: center; align-items: center;
-                z-index: 1000;
-                backdrop-filter: blur(3px);
+                background: rgba(0,0,0,0.7); display: flex;
+                justify-content: center; align-items: center;
+                z-index: 1000; backdrop-filter: blur(3px);
             }
             .tl-popup-content {
-                background: #333; color: #eee; border-radius: 8px; border: 1px solid #444;
-                width: 90%; max-height: 90vh; overflow-y: auto;
-                padding: 20px; box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+                background: #333; color: #eee; border-radius: 8px;
+                border: 1px solid #444; width: 90%; max-height: 90vh;
+                overflow-y: auto; padding: 20px;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
             }
             .tl-popup-title {
                 font-size: 1.2em; font-weight: bold; margin-bottom: 15px;
@@ -1874,7 +1875,6 @@ TornLibrary.ui = {
                 cursor: pointer; padding: 0 5px; line-height: 1;
             }
             .tl-popup-close:hover { color: #fff; }
-
             .tl-toggle-container {
                 display: flex; align-items: center; justify-content: space-between;
                 margin: 10px 0;
@@ -1885,8 +1885,9 @@ TornLibrary.ui = {
             }
             .tl-toggle-switch input { opacity: 0; width: 0; height: 0; }
             .tl-toggle-slider {
-                position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
-                background-color: #555; transition: .3s; border-radius: 12px;
+                position: absolute; cursor: pointer; top: 0; left: 0;
+                right: 0; bottom: 0; background-color: #555;
+                transition: .3s; border-radius: 12px;
             }
             .tl-toggle-slider::before {
                 position: absolute; content: ''; height: 20px; width: 20px;
@@ -1895,40 +1896,35 @@ TornLibrary.ui = {
             }
             .tl-toggle-switch input:checked + .tl-toggle-slider { background-color: #4CAF50; }
             .tl-toggle-switch input:checked + .tl-toggle-slider::before { transform: translateX(21px); }
-
             .tl-notification {
-                position: fixed; bottom: 20px; right: 20px;
-                color: white; padding: 12px 20px; border-radius: 4px;
+                position: fixed; bottom: 20px; right: 20px; color: white;
+                padding: 12px 20px; border-radius: 4px;
                 box-shadow: 0 2px 8px rgba(0,0,0,0.3); z-index: 9999;
-                font-size: 14px; opacity: 0; transition: opacity 0.3s ease, transform 0.3s ease;
+                font-size: 14px; opacity: 0;
+                transition: opacity 0.3s ease, transform 0.3s ease;
                 transform: translateY(20px);
             }
             .tl-notification.tl-visible { opacity: 1; transform: translateY(0); }
             .tl-notification.tl-info { background: #2196F3; }
             .tl-notification.tl-success { background: #4CAF50; }
             .tl-notification.tl-error { background: #f44336; }
+
+            /* --- NEW: Style for custom sidebar links --- */
+            .tl-sidebar-link .defaultIcon___iiNis svg {
+                filter: grayscale(100%) brightness(1.5); /* Make icon white */
+            }
         `);
         this._stylesAdded = true;
     },
 
-    /**
-     * Creates and displays a modal popup.
-     * @param {object} options - Configuration for the popup.
-     * @param {string} options.title - The title of the popup.
-     * @param {string|HTMLElement} options.content - The HTML string or DOM element for the popup body.
-     * @param {string} [options.id=''] - An ID for the main popup element.
-     * @param {string} [options.maxWidth='600px'] - The max-width of the popup.
-     * @returns {HTMLElement} The created popup element.
-     */
     createPopup({ title, content, id = '', maxWidth = '600px' }) {
+        // This function is unchanged
         this._addStyles();
         const existing = document.getElementById(id);
         if (existing) existing.remove();
-
         const popup = document.createElement('div');
         if (id) popup.id = id;
         popup.className = 'tl-popup-overlay';
-
         popup.innerHTML = `
             <div class="tl-popup-content" style="max-width: ${maxWidth};">
                 <div class="tl-popup-title">
@@ -1936,96 +1932,110 @@ TornLibrary.ui = {
                     <button class="tl-popup-close" title="Close">×</button>
                 </div>
                 <div class="tl-popup-body"></div>
-            </div>
-        `;
-
+            </div>`;
         const body = popup.querySelector('.tl-popup-body');
         if (typeof content === 'string') body.innerHTML = content;
         else body.appendChild(content);
-
         const close = () => popup.remove();
         popup.querySelector('.tl-popup-close').addEventListener('click', close);
         popup.addEventListener('click', (e) => { if (e.target === popup) close(); });
-
         document.body.appendChild(popup);
         return popup;
     },
 
-    /**
-     * Creates a CSS-based toggle switch.
-     * @param {object} options - Configuration for the toggle.
-     * @param {string} options.label - The text label for the toggle.
-     * @param {boolean} [options.checked=false] - The initial state of the toggle.
-     * @param {function(Event): void} [options.onChange] - Callback function for state change.
-     * @returns {HTMLElement} The container element for the toggle.
-     */
     createToggle({ label, checked = false, onChange }) {
+        // This function is unchanged
         this._addStyles();
         const container = document.createElement('div');
         container.className = 'tl-toggle-container';
-
         const labelEl = document.createElement('label');
         labelEl.textContent = label;
-
         const switchEl = document.createElement('label');
         switchEl.className = 'tl-toggle-switch';
-
         const input = document.createElement('input');
         input.type = 'checkbox';
         input.checked = checked;
-        
-        if (onChange) {
-            input.addEventListener('change', onChange);
-        }
-
+        if (onChange) input.addEventListener('change', onChange);
         const slider = document.createElement('span');
         slider.className = 'tl-toggle-slider';
-
         switchEl.append(input, slider);
-        
         const inputId = `tl-toggle-${Math.random().toString(36).substring(2, 9)}`;
         input.id = inputId;
         labelEl.htmlFor = inputId;
-
         container.append(labelEl, switchEl);
         return container;
     },
 
-    /**
-     * Shows a temporary on-screen notification.
-     * @param {string} message - The message to display.
-     * @param {'info'|'success'|'error'} [type='info'] - The type of notification.
-     * @param {number} [duration=3000] - How long to display the notification in ms.
-     */
     showNotification(message, type = 'info', duration = 3000) {
+        // This function is unchanged
         this._addStyles();
         const notif = document.createElement('div');
         notif.className = `tl-notification tl-${type}`;
         notif.textContent = message;
         document.body.appendChild(notif);
-        
         const removeNotif = () => {
             notif.classList.remove('tl-visible');
             notif.addEventListener('transitionend', () => notif.remove(), { once: true });
         };
-        
-        requestAnimationFrame(() => {
-            notif.classList.add('tl-visible');
-        });
-
+        requestAnimationFrame(() => notif.classList.add('tl-visible'));
         setTimeout(removeNotif, duration);
     },
 
     /**
-     * A safe wrapper for `GM_registerMenuCommand`.
-     * @param {string} label - The text to display in the menu.
-     * @param {function(): void} callback - The function to call when the command is clicked.
-     * @param {object} [options] - Options for the menu command.
+     * @deprecated Use addSidebarLink for better user experience.
      */
     addMenuCommand(label, callback, options) {
         if (typeof GM_registerMenuCommand === 'function') {
             GM_registerMenuCommand(label, callback, options);
         }
+    },
+
+    /**
+     * **NEW FUNCTION**
+     * Injects a new link into the main Torn sidebar navigation.
+     * @param {object} options - Configuration for the sidebar link.
+     * @param {string} options.id - A unique ID for your link element.
+     * @param {string} options.label - The text to display for the link.
+     * @param {function(Event): void} options.onClick - The function to call when the link is clicked.
+     * @param {string} [options.icon] - Optional SVG HTML string for the icon.
+     */
+    addSidebarLink({ id, label, onClick, icon }) {
+        this._addStyles();
+
+        // Default gear icon if none is provided
+        const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
+
+        // Use the library's DOM utility to wait for the sidebar to be ready.
+        TornLibrary.dom.waitForElement('.toggle-content___BJ9Q9', (sidebar) => {
+            // Prevent adding the link if it already exists
+            if (document.getElementById(id)) return;
+
+            const linkContainer = document.createElement('div');
+            linkContainer.id = id;
+            linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link'; // Added custom class for styling
+
+            linkContainer.innerHTML = `
+                <div class="area-row___iBD8N">
+                    <a href="#" class="desktopLink___SG2RU">
+                        <span class="svgIconWrap___AMIqR">
+                            <span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span>
+                        </span>
+                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
+                    </a>
+                </div>
+            `;
+
+            const linkElement = linkContainer.querySelector('a');
+            if (linkElement) {
+                linkElement.addEventListener('click', (event) => {
+                    event.preventDefault(); // Stop the link from navigating
+                    onClick(event);
+                });
+            }
+
+            // Append the new link to the end of the sidebar
+            sidebar.appendChild(linkContainer);
+        });
     }
 };
 
