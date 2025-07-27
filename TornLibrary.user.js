@@ -1985,8 +1985,7 @@ TornLibrary.ui = {
     },
 
     /**
-     * **NEW FUNCTION**
-     * Injects a new link into the main Torn sidebar navigation.
+     * Injects a new link into the main Torn sidebar navigation and ensures it stays there.
      * @param {object} options - Configuration for the sidebar link.
      * @param {string} options.id - A unique ID for your link element.
      * @param {string} options.label - The text to display for the link.
@@ -1994,50 +1993,47 @@ TornLibrary.ui = {
      * @param {string} [options.icon] - Optional SVG HTML string for the icon.
      */
     addSidebarLink({ id, label, onClick, icon }) {
-        console.log(`[TornLibrary.ui.addSidebarLink] Preparing to add link: "${label}"`);
         this._addStyles();
 
         const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
 
-        // Use the new polling-based function for reliability.
-        TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
-            console.log(`[TornLibrary.ui.addSidebarLink] "onElementReady" callback has fired for the sidebar. Now attempting to add link: "${label}"`);
-            
-            try {
-                if (document.getElementById(id)) {
-                    console.warn(`[TornLibrary.ui.addSidebarLink] Link with ID "${id}" already exists. Aborting.`);
-                    return;
-                }
+        const linkContainer = document.createElement('div');
+        linkContainer.id = id;
+        linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
+        linkContainer.innerHTML = `
+            <div class="area-row___iBD8N">
+                <a href="#" class="desktopLink___SG2RU">
+                    <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span></span>
+                    <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
+                </a>
+            </div>`;
+        linkContainer.querySelector('a')?.addEventListener('click', (e) => {
+            e.preventDefault();
+            onClick(e);
+        });
 
-                const linkContainer = document.createElement('div');
-                linkContainer.id = id;
-                linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
-
-                linkContainer.innerHTML = `
-                    <div class="area-row___iBD8N">
-                        <a href="#" class="desktopLink___SG2RU">
-                            <span class="svgIconWrap___AMIqR">
-                                <span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span>
-                            </span>
-                            <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
-                        </a>
-                    </div>
-                `;
-
-                const linkElement = linkContainer.querySelector('a');
-                if (linkElement) {
-                    linkElement.addEventListener('click', (event) => {
-                        event.preventDefault();
-                        onClick(event);
-                    });
-                }
-
+        // This function checks if the link exists and adds it if it doesn't.
+        const ensureLinkExists = (sidebar) => {
+            if (!document.getElementById(id)) {
                 sidebar.appendChild(linkContainer);
-                console.info(`✔️ [TornLibrary.ui.addSidebarLink] Successfully appended link "${label}" to the sidebar.`);
-
-            } catch (error) {
-                console.error(`❌ [TornLibrary.ui.addSidebarLink] An error occurred while trying to append the link to the sidebar.`, error);
+                console.info(`[TornLibrary] Added (or re-added) sidebar link: "${label}"`);
             }
+        };
+
+        // Find the sidebar and then set up a permanent guard.
+        TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
+            // 1. Add the link for the first time.
+            ensureLinkExists(sidebar);
+
+            // 2. Create a persistent observer to act as a "guard".
+            const observer = new MutationObserver(() => {
+                // When ANY change happens in the sidebar, we re-run our check.
+                // This will re-add the link if the framework has wiped it out.
+                ensureLinkExists(sidebar);
+            });
+
+            // 3. Tell the guard to watch the sidebar for any changes to its children.
+            observer.observe(sidebar, { childList: true });
         });
     }
 };
