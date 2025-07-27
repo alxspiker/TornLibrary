@@ -1854,9 +1854,70 @@ TornLibrary.ui = {
         this._stylesAdded = true;
     },
 
-    createPopup({ title, content, id = '', maxWidth = '600px' }) { /* Unchanged */ },
-    createToggle({ label, checked = false, onChange }) { /* Unchanged */ },
-    showNotification(message, type = 'info', duration = 3000) { /* Unchanged */ },
+
+    createPopup({ title, content, id = '', maxWidth = '600px' }) {
+        // This function is unchanged
+        this._addStyles();
+        const existing = document.getElementById(id);
+        if (existing) existing.remove();
+        const popup = document.createElement('div');
+        if (id) popup.id = id;
+        popup.className = 'tl-popup-overlay';
+        popup.innerHTML = `
+            <div class="tl-popup-content" style="max-width: ${maxWidth};">
+                <div class="tl-popup-title">
+                    <span>${TornLibrary.utils.escapeHTML(title)}</span>
+                    <button class="tl-popup-close" title="Close">×</button>
+                </div>
+                <div class="tl-popup-body"></div>
+            </div>`;
+        const body = popup.querySelector('.tl-popup-body');
+        if (typeof content === 'string') body.innerHTML = content;
+        else body.appendChild(content);
+        const close = () => popup.remove();
+        popup.querySelector('.tl-popup-close').addEventListener('click', close);
+        popup.addEventListener('click', (e) => { if (e.target === popup) close(); });
+        document.body.appendChild(popup);
+        return popup;
+    },
+
+    createToggle({ label, checked = false, onChange }) {
+        // This function is unchanged
+        this._addStyles();
+        const container = document.createElement('div');
+        container.className = 'tl-toggle-container';
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        const switchEl = document.createElement('label');
+        switchEl.className = 'tl-toggle-switch';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+        if (onChange) input.addEventListener('change', onChange);
+        const slider = document.createElement('span');
+        slider.className = 'tl-toggle-slider';
+        switchEl.append(input, slider);
+        const inputId = `tl-toggle-${Math.random().toString(36).substring(2, 9)}`;
+        input.id = inputId;
+        labelEl.htmlFor = inputId;
+        container.append(labelEl, switchEl);
+        return container;
+    },
+
+    showNotification(message, type = 'info', duration = 3000) {
+        // This function is unchanged
+        this._addStyles();
+        const notif = document.createElement('div');
+        notif.className = `tl-notification tl-${type}`;
+        notif.textContent = message;
+        document.body.appendChild(notif);
+        const removeNotif = () => {
+            notif.classList.remove('tl-visible');
+            notif.addEventListener('transitionend', () => notif.remove(), { once: true });
+        };
+        requestAnimationFrame(() => notif.classList.add('tl-visible'));
+        setTimeout(removeNotif, duration);
+    },
     addMenuCommand(label, callback, options) { if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand(label, callback, options); },
 
     /**
