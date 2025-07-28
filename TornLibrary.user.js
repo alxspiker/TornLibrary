@@ -1927,73 +1927,112 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        if (this._linkAdded) return;
+        if (this._linkAdded) {
+            console.log("[TornLibrary.page.common] Link already added, skipping.");
+            return;
+        }
 
         // Detect mobile mode (adjust breakpoint if Torn's differs; 767px is common for mobile)
-        const isMobile = TornLibrary.utils.isMobile();
+        const isMobile = window.matchMedia('(max-width: 767px)').matches;
+        console.log(`[TornLibrary.page.common] Viewport detected: ${isMobile ? 'Mobile' : 'Desktop'}`);
 
-        // Default icons (kept as before)
+        // Default icons
         const defaultDesktopIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
         const defaultMobileIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
 
         if (isMobile) {
-            // Poll for a stable nav ID (e.g., #nav-home), then get the wrapper from there
+            // Poll for a stable nav ID (#nav-home), then get the swiper wrapper
+            console.log("[TornLibrary.page.common] Starting poll for mobile menu (#nav-home)");
             TornLibrary.dom.onElementReady('#nav-home', (navHome) => {
-                if (this._linkAdded) return;
+                if (this._linkAdded) {
+                    console.log("[TornLibrary.page.common] Link already added during mobile poll, skipping.");
+                    return;
+                }
 
                 const swiperWrapper = navHome.closest('.swiper-wrapper');
-                if (!swiperWrapper) return;
-
-                console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
+                if (!swiperWrapper) {
+                    console.error("[TornLibrary.page.common] Mobile swiper wrapper (.swiper-wrapper) not found from #nav-home.");
+                    return;
+                }
+                console.log("[TornLibrary.page.common] Mobile swiper wrapper found:", swiperWrapper);
 
                 // Clone an existing slide to inherit all current hashed classes/structure
                 const existingSlide = swiperWrapper.querySelector('.swiper-slide');
-                if (!existingSlide) return;
+                if (!existingSlide) {
+                    console.error("[TornLibrary.page.common] No swiper-slide found in mobile menu.");
+                    return;
+                }
 
                 const newSlide = existingSlide.cloneNode(true);
 
-                // Remove any ID to avoid conflicts
+                // Remove any ID or data attributes to avoid conflicts
                 const idElement = newSlide.querySelector('[id]');
                 if (idElement) idElement.removeAttribute('id');
+                const dataElement = newSlide.querySelector('[i-data]');
+                if (dataElement) dataElement.removeAttribute('i-data');
 
                 // Modify the link
                 const link = newSlide.querySelector('a');
                 if (link) {
                     link.href = href;
-                    link.tabIndex = 0; // Ensure tabindex as before
+                    link.tabIndex = 0;
 
                     // Set text
                     const textSpan = link.querySelector('span:not(.svgIconWrap___AMIqR)');
-                    if (textSpan) textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+                    if (textSpan) {
+                        textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+                    } else {
+                        console.error("[TornLibrary.page.common] Text span not found in cloned mobile link.");
+                    }
 
                     // Set icon
-                    const iconSpan = link.querySelector('.defaultIcon___iiNis'); // Hashed, but cloned so matches current
+                    const iconSpan = link.querySelector('[class*="defaultIcon___"]');
                     if (iconSpan) {
                         iconSpan.innerHTML = svgIcon || defaultMobileIcon;
+                    } else {
+                        console.error("[TornLibrary.page.common] Icon span not found in cloned mobile link.");
                     }
+                } else {
+                    console.error("[TornLibrary.page.common] Anchor tag not found in cloned mobile slide.");
+                    return;
                 }
 
                 swiperWrapper.appendChild(newSlide);
                 this._linkAdded = true;
+                console.log("[TornLibrary.page.common] Mobile link added successfully:", text);
 
                 // Update swiper instance
-                const swiperContainer = swiperWrapper.parentElement; // Adjust if swiper is on a different parent (inspect if needed)
+                const swiperContainer = swiperWrapper.parentElement;
                 if (swiperContainer && swiperContainer.swiper) {
                     swiperContainer.swiper.update();
+                    console.log("[TornLibrary.page.common] Swiper instance updated.");
+                } else {
+                    console.warn("[TornLibrary.page.common] Swiper instance not found for update.");
                 }
             });
         } else {
             // Poll for stable desktop container using starts-with for hashed class
+            console.log("[TornLibrary.page.common] Starting poll for desktop menu ([class^='areas-desktop___'])");
             TornLibrary.dom.onElementReady('[class^="areas-desktop___"]', (areasContainer) => {
-                if (this._linkAdded) return;
-
-                console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
+                if (this._linkAdded) {
+                    console.log("[TornLibrary.page.common] Link already added during desktop poll, skipping.");
+                    return;
+                }
 
                 // Clone an existing area-desktop to inherit hashed classes/structure
                 const existingArea = areasContainer.querySelector('[class^="area-desktop___"]');
-                if (!existingArea) return;
+                if (!existingArea) {
+                    console.error("[TornLibrary.page.common] No area-desktop element found in desktop menu.");
+                    return;
+                }
 
                 const newArea = existingArea.cloneNode(true);
+
+                // Remove any ID or data attributes
+                const idElement = newArea.querySelector('[id]');
+                if (idElement) idElement.removeAttribute('id');
+                const dataElement = newArea.querySelector('[i-data]');
+                if (dataElement) dataElement.removeAttribute('i-data');
 
                 // Modify the link
                 const link = newArea.querySelector('a');
@@ -2001,18 +2040,28 @@ TornLibrary.page.common = {
                     link.href = href;
 
                     // Set text
-                    const textSpan = link.querySelector('[class^="linkName___"]'); // Hashed class via starts-with
-                    if (textSpan) textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+                    const textSpan = link.querySelector('[class^="linkName___"]');
+                    if (textSpan) {
+                        textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+                    } else {
+                        console.error("[TornLibrary.page.common] Text span not found in cloned desktop link.");
+                    }
 
                     // Set icon
-                    const iconSpan = link.querySelector('.defaultIcon___iiNis');
+                    const iconSpan = link.querySelector('[class*="defaultIcon___"]');
                     if (iconSpan) {
                         iconSpan.innerHTML = svgIcon || defaultDesktopIcon;
+                    } else {
+                        console.error("[TornLibrary.page.common] Icon span not found in cloned desktop link.");
                     }
+                } else {
+                    console.error("[TornLibrary.page.common] Anchor tag not found in cloned desktop area.");
+                    return;
                 }
 
                 areasContainer.appendChild(newArea);
                 this._linkAdded = true;
+                console.log("[TornLibrary.page.common] Desktop link added successfully:", text);
             });
         }
     }
