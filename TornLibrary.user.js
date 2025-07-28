@@ -1914,7 +1914,7 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _linkAdded: false, // Universal flag to prevent adding any link more than once.
+    _linkAdded: false,
     _mobileLinkAdded: false,
 
     /**
@@ -1933,33 +1933,40 @@ TornLibrary.page.common = {
             // --- DESKTOP LOGIC ---
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
                 if (this._linkAdded) return;
-                
-                // Find or create the "Scripts" header and link container.
-                // This logic is exclusive to the addMenuLink function.
-                let scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
-                if (!scriptsLinkContainer) {
-                    const parentContainer = sidebarElement.querySelector('.sidebar-block___Ef1l1 .content___wSUdj');
-                    if (!parentContainer) return;
-                    const scriptSectionWrapper = document.createElement('div');
-                    scriptSectionWrapper.className = 'toggle-block___oKpdF';
-                    scriptSectionWrapper.innerHTML = `<div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div>`;
-                    parentContainer.appendChild(scriptSectionWrapper);
-                    scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
+
+                let scriptsSection = document.getElementById('tl-scripts-section');
+                if (!scriptsSection) {
+                    scriptsSection = document.createElement('div');
+                    scriptsSection.id = 'tl-scripts-section';
+                    scriptsSection.className = 'sidebar-block___Ef1l1 desktop___aYLqo'; // Create a new main block
+                    scriptsSection.innerHTML = `
+                        <div class="content___wSUdj">
+                            <div class="toggle-block___oKpdF">
+                                <div class="header___RpWar desktop___ei8Er">
+                                    <h2 class="title___XfwKa">Scripts</h2>
+                                </div>
+                                <div class="toggle-content___BJ9Q9" id="tl-scripts-links-container">
+                                    <!-- Script links will be inserted here -->
+                                </div>
+                            </div>
+                        </div>`;
+                    // Append the entire new block to the main sidebar
+                    sidebarElement.appendChild(scriptsSection);
                 }
 
+                const scriptsLinkContainer = scriptsSection.querySelector('#tl-scripts-links-container');
                 if (scriptsLinkContainer) {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
                     desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${href}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
                     scriptsLinkContainer.appendChild(desktopLink);
-                    this._linkAdded = true;
                 }
-            
+                this._linkAdded = true;
+
             // --- MOBILE LOGIC ---
             } else if (sidebarElement.classList.contains('mobile___s55hz')) {
                 if (this._mobileLinkAdded) return;
-
                 const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
                 if (swiperWrapper) {
                     const mobileLink = document.createElement('div');
@@ -1975,11 +1982,7 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new status icon to the user information panel.
-     * @param {object} options - The options for the new icon.
-     * @param {string} options.id - A unique ID for the new icon element.
-     * @param {string} options.className - A custom class name to style your icon (e.g., 'my-script-icon').
-     * @param {string} options.label - The tooltip text that appears on hover.
-     * @param {string} [options.href='#'] - The URL the icon should link to.
+     * (This function is correct and does not create a header).
      */
     addStatusIcon: function({ id, className, label, href = '#' }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
@@ -1997,11 +2000,8 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new information row (like Name or Level) to the user panel.
-     * @param {object} options - The options for the new row.
-     * @param {string} options.id - A unique ID for the new row element.
-     * @param {string} options.label - The text label for the row (e.g., "API Usage").
-     * @param {string} options.value - The value, which can be plain text or HTML (e.g., for a link).
+     * Adds a new information row to the user panel.
+     * (This function is correct and does not create a header).
      */
     addInfoRow: function({ id, label, value }) {
         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
@@ -2015,11 +2015,8 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new points-style block (like Money or Points) to the user panel.
-     * @param {object} options - The options for the new block.
-     * @param {string} options.id - A unique ID for the new block element.
-     * @param {string} options.label - The text label for the block (e.g., "Custom Stat").
-     * @param {string} options.value - The value to display.
+     * Adds a new points-style block to the user panel.
+     * (This function is correct and does not create a header).
      */
     addPointBlock: function({ id, label, value }) {
          TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
@@ -2034,14 +2031,8 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new progress bar (like Energy or Nerve) to the user panel.
-     * @param {object} options - The options for the new bar.
-     * @param {string} options.id - A unique ID for the new bar element.
-     * @param {string} options.label - The name of the bar (e.g., "Script Cooldown").
-     * @param {number} options.current - The current value.
-     * @param {number} options.max - The maximum value.
-     * @param {string} [options.timer=''] - The countdown text to display.
-     * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
+     * Adds a new progress bar to the user panel.
+     * (This function is correct and does not create a header).
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
         TornLibrary.dom.onElementReady('.content___GVtZ_ > div:last-child', (barContainer) => {
