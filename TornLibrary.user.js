@@ -1929,65 +1929,89 @@ TornLibrary.page.common = {
     addMenuLink: function({ text, href, svgIcon }) {
         if (this._linkAdded) return;
 
-        // Detect mobile mode (adjust breakpoint if Torn's is different; 767px is a common mobile max-width)
-        const isMobile = TornLibrary.utils.isMobile;
+        // Detect mobile mode (adjust breakpoint if Torn's differs; 767px is common for mobile)
+        const isMobile = TornLibrary.utils.isMobile();
 
-        // --- Helper: Creates the desktop link HTML ---
-        const createDesktopLink = () => {
-            const areaDiv = document.createElement('div');
-            areaDiv.className = 'area-desktop___bpqAS';
-            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
-            areaDiv.innerHTML = `
-                <div class="area-row___iBD8N">
-                    <a href="${href}" class="desktopLink___SG2RU">
-                        <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span>
-                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span>
-                    </a>
-                </div>`;
-            return areaDiv;
-        };
-
-        // --- Helper: Creates the mobile link HTML for the bottom swiper ---
-        const createMobileLink = () => {
-            const swiperSlideDiv = document.createElement('div');
-            swiperSlideDiv.className = 'swiper-slide slide___se7hj'; // Matches existing slides
-            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
-            swiperSlideDiv.innerHTML = `
-                <div class="area-mobile___BH0Ku">
-                    <div class="area-row___iBD8N">
-                        <a href="${href}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink">
-                            <span class="svgIconWrap___AMIqR">
-                                <span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span>
-                            </span>
-                            <span>${TornLibrary.utils.escapeHTML(text)}</span>
-                        </a>
-                    </div>
-                </div>`;
-            return swiperSlideDiv;
-        };
+        // Default icons (kept as before)
+        const defaultDesktopIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
+        const defaultMobileIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
 
         if (isMobile) {
-            // --- Poll only for the MOBILE sidebar's swiper wrapper ---
-            TornLibrary.dom.onElementReady('.swiper-wrapper.swiper___DGw8D', (swiperWrapper) => {
+            // Poll for a stable nav ID (e.g., #nav-home), then get the wrapper from there
+            TornLibrary.dom.onElementReady('#nav-home', (navHome) => {
                 if (this._linkAdded) return;
 
+                const swiperWrapper = navHome.closest('.swiper-wrapper');
+                if (!swiperWrapper) return;
+
                 console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
-                swiperWrapper.appendChild(createMobileLink());
+
+                // Clone an existing slide to inherit all current hashed classes/structure
+                const existingSlide = swiperWrapper.querySelector('.swiper-slide');
+                if (!existingSlide) return;
+
+                const newSlide = existingSlide.cloneNode(true);
+
+                // Remove any ID to avoid conflicts
+                const idElement = newSlide.querySelector('[id]');
+                if (idElement) idElement.removeAttribute('id');
+
+                // Modify the link
+                const link = newSlide.querySelector('a');
+                if (link) {
+                    link.href = href;
+                    link.tabIndex = 0; // Ensure tabindex as before
+
+                    // Set text
+                    const textSpan = link.querySelector('span:not(.svgIconWrap___AMIqR)');
+                    if (textSpan) textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+
+                    // Set icon
+                    const iconSpan = link.querySelector('.defaultIcon___iiNis'); // Hashed, but cloned so matches current
+                    if (iconSpan) {
+                        iconSpan.innerHTML = svgIcon || defaultMobileIcon;
+                    }
+                }
+
+                swiperWrapper.appendChild(newSlide);
                 this._linkAdded = true;
 
-                // Update the swiper instance to recognize the new slide (assumes Swiper.js; inspect Torn's code for exact container class if needed)
-                const swiperContainer = swiperWrapper.parentElement; // Or use swiperWrapper.closest('.swiper-container-class-if-known')
+                // Update swiper instance
+                const swiperContainer = swiperWrapper.parentElement; // Adjust if swiper is on a different parent (inspect if needed)
                 if (swiperContainer && swiperContainer.swiper) {
-                    swiperContainer.swiper.update(); // Refreshes layout, slide count, etc.
+                    swiperContainer.swiper.update();
                 }
             });
         } else {
-            // --- Poll only for the DESKTOP sidebar's content area ---
-            TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
+            // Poll for stable desktop container using starts-with for hashed class
+            TornLibrary.dom.onElementReady('[class^="areas-desktop___"]', (areasContainer) => {
                 if (this._linkAdded) return;
-                
+
                 console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
-                areasContainer.appendChild(createDesktopLink());
+
+                // Clone an existing area-desktop to inherit hashed classes/structure
+                const existingArea = areasContainer.querySelector('[class^="area-desktop___"]');
+                if (!existingArea) return;
+
+                const newArea = existingArea.cloneNode(true);
+
+                // Modify the link
+                const link = newArea.querySelector('a');
+                if (link) {
+                    link.href = href;
+
+                    // Set text
+                    const textSpan = link.querySelector('[class^="linkName___"]'); // Hashed class via starts-with
+                    if (textSpan) textSpan.innerHTML = TornLibrary.utils.escapeHTML(text);
+
+                    // Set icon
+                    const iconSpan = link.querySelector('.defaultIcon___iiNis');
+                    if (iconSpan) {
+                        iconSpan.innerHTML = svgIcon || defaultDesktopIcon;
+                    }
+                }
+
+                areasContainer.appendChild(newArea);
                 this._linkAdded = true;
             });
         }
