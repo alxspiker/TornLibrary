@@ -1951,8 +1951,7 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
-     * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
+     * Adds a new link to the appropriate menu.
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link.
      * @param {string} [options.href='#'] - The URL the link should point to. Ignored if onClick is provided.
@@ -2008,7 +2007,7 @@ TornLibrary.page.common = {
      */
     setMenuLinkVisible: function(name, isVisible) {
         this._findMenuLink(name, (container, link) => {
-            container.style.display = isVisible ? '' : 'none';
+            if (container) container.style.display = isVisible ? '' : 'none';
         });
     },
 
@@ -2016,34 +2015,32 @@ TornLibrary.page.common = {
      * Overrides the behavior of an existing menu link.
      * @param {string} name - The text of the link to modify (e.g., 'Home', 'Gym'). Case-insensitive.
      * @param {object} options - The new properties for the link.
-     * @param {string} [options.href] - The new URL for the link. Ignored if onClick is provided.
+     * @param {string} [options.href] - The new URL for the link.
      * @param {function(Event): void} [options.onClick] - A new function to run on click.
      */
     overrideMenuLink: function(name, { href, onClick }) {
         this._findMenuLink(name, (container, link) => {
-            if (!link) return;
-            if (!link.dataset.tlOverridden) { // Prevent adding multiple listeners
-                if (onClick) {
-                    link.href = 'javascript:void(0);';
-                    link.addEventListener('click', (e) => {
-                        e.preventDefault();
-                        onClick(e);
-                    });
-                } else if (href) {
-                    link.href = href;
-                }
-                link.dataset.tlOverridden = 'true';
+            if (!link || link.dataset.tlOverridden) return;
+
+            const newLink = link.cloneNode(true);
+
+            if (onClick) {
+                newLink.href = 'javascript:void(0);';
+                newLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    onClick(e);
+                });
+            } else if (href) {
+                newLink.href = href;
             }
+
+            link.parentNode.replaceChild(newLink, link);
+            newLink.dataset.tlOverridden = 'true';
         });
     },
 
     /**
-     * Adds a new status icon to the user information panel (desktop and mobile).
-     * @param {object} options - The options for the new icon.
-     * @param {string} options.id - A unique ID for the new icon element.
-     * @param {string} options.className - A custom class name to style your icon.
-     * @param {string} options.label - The tooltip text that appears on hover.
-     * @param {string} [options.href='#'] - The URL the icon should link to.
+     * Adds a new status icon to the user information panel.
      * @param {function(Event): void} [options.onClick] - A function to run when the icon is clicked.
      */
     addStatusIcon: function({ id, className, label, href = '#', onClick }) {
@@ -2064,10 +2061,6 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new text-based stat row (like Name or Level) to the user panel. (Desktop only).
-     * @param {object} options - The options for the new row.
-     * @param {string} options.id - A unique ID for the new row element.
-     * @param {string} options.label - The text label for the row.
-     * @param {string} options.value - The value, which can be plain text or HTML.
      */
     addTextStat: function({ id, label, value }) {
         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
@@ -2082,11 +2075,6 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new numerical stat block with an icon (like Money or Points) to the user panel.
-     * @param {object} options - The options for the new block.
-     * @param {string} options.id - A unique ID for the new block element.
-     * @param {string} options.label - The text label for the block.
-     * @param {string} options.value - The value to display.
-     * @param {string} [options.svgIcon] - An SVG string for the mobile icon. A default is provided.
      */
     addIconStat: function({ id, label, value, svgIcon }) {
          TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
@@ -2118,13 +2106,6 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new progress bar (like Energy or Nerve) to the user panel.
-     * @param {object} options - The options for the new bar.
-     * @param {string} options.id - A unique ID for the new bar element.
-     * @param {string} options.label - The name of the bar.
-     * @param {number} options.current - The current value.
-     * @param {number} options.max - The maximum value.
-     * @param {string} [options.timer=''] - The countdown text to display.
-     * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
         TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
