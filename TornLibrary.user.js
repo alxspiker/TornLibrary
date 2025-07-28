@@ -53,7 +53,7 @@ TornLibrary.utils = {
      * Checks if the current view is likely a mobile device based on screen width.
      * @returns {boolean}
      */
-    isMobile: () => window.innerWidth <= 784,
+    isMobile: () => window.innerWidth <= 1000,
 
     /**
      * Checks if the script is running in the Torn PDA mobile app.
@@ -1914,11 +1914,12 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _linkAdded: false, // Universal flag to prevent duplicate additions
+    _linkAdded: false, // Universal flag to prevent adding any link more than once.
 
     /**
-     * Adds a new link to the appropriate menu (sidebar for desktop, bottom bar for mobile).
-     * It safely waits for the correct menu element to be available before adding the link.
+     * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
+     * This function is responsive-aware. It polls for both desktop and mobile menu containers
+     * and acts on whichever one is found first, cancelling the other.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1926,11 +1927,9 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        if (this._linkAdded) {
-            return; // Exit immediately if a link has already been added.
-        }
+        if (this._linkAdded) return;
 
-        // --- Helper function to create the desktop sidebar link ---
+        // --- Helper: Creates the desktop link HTML ---
         const createDesktopLink = () => {
             const areaDiv = document.createElement('div');
             areaDiv.className = 'area-desktop___bpqAS';
@@ -1945,40 +1944,42 @@ TornLibrary.page.common = {
             return areaDiv;
         };
 
-        // --- Helper function to create the mobile bottom bar link ---
+        // --- Helper: Creates the mobile link HTML for the bottom swiper ---
         const createMobileLink = () => {
-            const li = document.createElement('li');
-            li.className = 'area-item___j9_9p'; // Class matches other mobile icons
+            const swiperSlideDiv = document.createElement('div');
+            swiperSlideDiv.className = 'swiper-slide slide___se7hj'; // Matches existing slides
             const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
-            li.innerHTML = `
-                <a href="${href}" class="mobileLink___xTgRa sidebarMobileLink">
-                    <span class="svgIconWrap___AMIqR">
-                        <span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span>
-                    </span>
-                    <span>${TornLibrary.utils.escapeHTML(text)}</span>
-                </a>`;
-            return li;
+            swiperSlideDiv.innerHTML = `
+                <div class="area-mobile___BH0Ku">
+                    <div class="area-row___iBD8N">
+                        <a href="${href}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink">
+                            <span class="svgIconWrap___AMIqR">
+                                <span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span>
+                            </span>
+                            <span>${TornLibrary.utils.escapeHTML(text)}</span>
+                        </a>
+                    </div>
+                </div>`;
+            return swiperSlideDiv;
         };
 
-        // DECISION: Check view and run ONLY the relevant logic.
-        if (TornLibrary.utils.isMobile()) {
-            // --- MOBILE LOGIC ---
-            // The mobile view has a bottom menu bar which is what we'll add to.
-            // The selector 'ul.areas-list___CgD_g' targets the list inside that bar.
-            TornLibrary.dom.onElementReady('ul.areas-list___CgD_g', (menuList) => {
-                if (this._linkAdded) return;
-                menuList.appendChild(createMobileLink());
-                this._linkAdded = true;
-            });
-        } else {
-            // --- DESKTOP LOGIC ---
-            // The desktop view has the permanent sidebar on the left.
-            TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
-                if (this._linkAdded) return;
-                areasContainer.appendChild(createDesktopLink());
-                this._linkAdded = true;
-            });
-        }
+        // --- Start polling for the DESKTOP sidebar's content area ---
+        TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
+            if (this._linkAdded) return; // If mobile found its element first, stop.
+            
+            console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
+            areasContainer.appendChild(createDesktopLink());
+            this._linkAdded = true;
+        });
+
+        // --- Start polling for the MOBILE sidebar's swiper wrapper ---
+        TornLibrary.dom.onElementReady('.swiper-wrapper.swiper___DGw8D', (swiperWrapper) => {
+            if (this._linkAdded) return; // If desktop found its element first, stop.
+
+            console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
+            swiperWrapper.appendChild(createMobileLink());
+            this._linkAdded = true;
+        });
     }
 };
 
