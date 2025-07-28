@@ -1914,10 +1914,10 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _mobileLinkAdded: false, // Flag to prevent adding the mobile link multiple times
+    _linkAdded: false, // Universal flag to prevent duplicate additions
 
     /**
-     * Adds a new link to the main sidebar and the mobile menu.
+     * Adds a new link to the appropriate menu (sidebar for desktop, hamburger menu for mobile).
      * It safely waits for the menu elements to be available before adding the link.
      *
      * @param {object} options - The options for the new link.
@@ -1926,69 +1926,66 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        // --- Helper function to create the desktop sidebar link ---
-        const createDesktopLink = () => {
-            const areaDiv = document.createElement('div');
-            areaDiv.className = 'area-desktop___bpqAS';
-            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
-            areaDiv.innerHTML = `
-                <div class="area-row___iBD8N">
-                    <a href="${href}" class="desktopLink___SG2RU">
-                        <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span>
-                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span>
-                    </a>
-                </div>`;
-            return areaDiv;
-        };
+        if (this._linkAdded) return;
 
-        // --- Helper function to create the mobile menu link ---
-        const createMobileLink = () => {
-            const li = document.createElement('li');
-            li.className = 'link';
-            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="default___XXAGt" filter="" fill="#fff" stroke="transparent" stroke-width="0" width="28" height="28" viewBox="-6 -4 28 28"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
-             li.innerHTML = `
-                <a href="${href}">
-                    <div class="icon-wrapper">${svgIcon || defaultIcon}</div>
-                    <span class="link-text">${TornLibrary.utils.escapeHTML(text)}</span>
-                </a>`;
-            return li;
-        };
+        // Check which view is active
+        if (!TornLibrary.utils.isMobile()) {
+            // --- DESKTOP LOGIC ---
+            const createDesktopLink = () => {
+                const areaDiv = document.createElement('div');
+                areaDiv.className = 'area-desktop___bpqAS';
+                const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
+                areaDiv.innerHTML = `
+                    <div class="area-row___iBD8N">
+                        <a href="${href}" class="desktopLink___SG2RU">
+                            <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span>
+                            <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span>
+                        </a>
+                    </div>`;
+                return areaDiv;
+            };
 
-        // --- 1. Add to Desktop Sidebar (unchanged) ---
-        TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
-            const desktopLink = createDesktopLink();
-            areasContainer.appendChild(desktopLink);
-        });
+            TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
+                if (this._linkAdded) return;
+                areasContainer.appendChild(createDesktopLink());
+                this._linkAdded = true;
+            });
 
-        // --- 2. Add to Mobile Menu (new, robust logic) ---
-        // First, find the button that opens the mobile menu. This is always present on the page.
-        TornLibrary.dom.onElementReady('.header-buttons-wrapper .avatar > button', (mobileMenuButton) => {
-            // Add a click listener that will fire every time the menu is opened.
-            mobileMenuButton.addEventListener('click', () => {
-                // If we've already added the link, do nothing.
-                if (this._mobileLinkAdded) return;
+        } else {
+            // --- MOBILE LOGIC ---
+            const createMobileLink = () => {
+                const li = document.createElement('li');
+                li.className = 'link';
+                const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" class="default___XXAGt" fill="#fff" stroke="transparent" stroke-width="0" width="28" height="28" viewBox="-6 -4 28 28"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
+                 li.innerHTML = `
+                    <a href="${href}">
+                        <div class="icon-wrapper">${svgIcon || defaultIcon}</div>
+                        <span class="link-text">${TornLibrary.utils.escapeHTML(text)}</span>
+                    </a>`;
+                return li;
+            };
 
-                // Now that the button has been clicked, the menu content will be in the DOM.
-                // We use onElementReady again to safely wait for it to render.
-                TornLibrary.dom.onElementReady('.mobile-menu__content .links-list', (menuList) => {
-                    // Check again inside the callback to be absolutely sure we don't add duplicates.
-                    if (this._mobileLinkAdded) return;
-
-                    const mobileLink = createMobileLink();
-                    const logoutLink = menuList.querySelector('a[href^="logout.php"]');
-                    const logoutLi = logoutLink ? logoutLink.closest('li') : null;
-
-                    if (logoutLi && logoutLi.parentElement === menuList) {
-                         menuList.insertBefore(mobileLink, logoutLi);
-                    } else {
-                        menuList.appendChild(mobileLink);
-                    }
+            // In mobile view, the trigger is the hamburger icon.
+            TornLibrary.dom.onElementReady('button.mobile-menu-open-button', (mobileMenuButton) => {
+                mobileMenuButton.addEventListener('click', () => {
+                    if (this._linkAdded) return;
                     
-                    // Set the flag to true so we don't run this logic again.
-                    this._mobileLinkAdded = true;
+                    // Now wait for the menu content to actually appear after the click.
+                    TornLibrary.dom.onElementReady('.mobile-menu__content .links-list', (menuList) => {
+                        if (this._linkAdded) return;
+
+                        const mobileLink = createMobileLink();
+                        const logoutLink = menuList.querySelector('a[href^="logout.php"]');
+                        if (logoutLink) {
+                             menuList.insertBefore(mobileLink, logoutLink.closest('li'));
+                        } else {
+                            menuList.appendChild(mobileLink);
+                        }
+                        this._linkAdded = true;
+                    });
                 });
             });
-        });
+        }
     }
 };
 
