@@ -1914,17 +1914,12 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _linkAdded: false, // Universal flag to prevent adding any link more than once.
+    _linkAdded: false,
     _mobileLinkAdded: false,
 
     /**
-     * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
-     * This function is responsive-aware and robust.
-     *
-     * @param {object} options - The options for the new link.
-     * @param {string} options.text - The label for the link (e.g., 'My Script').
-     * @param {string} options.href - The URL the link should point to (e.g., '/messages.php').
-     * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
+     * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
+     * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
      */
     addMenuLink: function({ text, href, svgIcon }) {
         if (this._linkAdded && this._mobileLinkAdded) return;
@@ -1932,24 +1927,23 @@ TornLibrary.page.common = {
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
                 if (this._linkAdded) return;
-                let scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
-                if (!scriptsLinkContainer) {
-                    const parentContainer = sidebarElement.querySelector('.sidebar-block___Ef1l1 .content___wSUdj');
-                    if (!parentContainer) return;
-                    const scriptSectionWrapper = document.createElement('div');
-                    scriptSectionWrapper.className = 'toggle-block___oKpdF';
-                    scriptSectionWrapper.innerHTML = `<div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div>`;
-                    parentContainer.prepend(scriptSectionWrapper);
-                    scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
+                let scriptsSection = document.getElementById('tl-scripts-section');
+                if (!scriptsSection) {
+                    scriptsSection = document.createElement('div');
+                    scriptsSection.id = 'tl-scripts-section';
+                    scriptsSection.className = 'sidebar-block___Ef1l1 desktop___aYLqo';
+                    scriptsSection.innerHTML = `<div class="content___wSUdj"><div class="toggle-block___oKpdF"><div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div></div></div>`;
+                    sidebarElement.appendChild(scriptsSection);
                 }
+                const scriptsLinkContainer = scriptsSection.querySelector('#tl-scripts-links-container');
                 if (scriptsLinkContainer) {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
                     desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${href}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
                     scriptsLinkContainer.appendChild(desktopLink);
-                    this._linkAdded = true;
                 }
+                this._linkAdded = true;
             } else if (sidebarElement.classList.contains('mobile___s55hz')) {
                 if (this._mobileLinkAdded) return;
                 const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
@@ -1966,111 +1960,124 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new status icon to the user information panel.
-     * @param {object} options - The options for the new icon.
-     * @param {string} options.id - A unique ID for the new icon element.
-     * @param {string} options.className - A custom class name to style your icon (e.g., 'my-script-icon').
-     * @param {string} options.label - The tooltip text that appears on hover.
-     * @param {string} [options.href='#'] - The URL the icon should link to.
+     * Adds a new status icon to the user information panel (desktop and mobile).
      */
     addStatusIcon: function({ id, className, label, href = '#' }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
-            if (document.getElementById(id)) return; // Don't add if it already exists
-
+            if (document.getElementById(id)) return;
             const li = document.createElement('li');
             li.id = id;
-            li.className = className; // Use your custom class for styling
-
+            li.className = className;
             const a = document.createElement('a');
             a.href = href;
             a.setAttribute('aria-label', label);
             a.tabIndex = 0;
-
             li.appendChild(a);
             iconList.appendChild(li);
         });
     },
 
     /**
-     * Adds a new information row (like Name or Level) to the user panel.
-     * @param {object} options - The options for the new row.
-     * @param {string} options.id - A unique ID for the new row element.
-     * @param {string} options.label - The text label for the row (e.g., "API Usage").
-     * @param {string} options.value - The value, which can be plain text or HTML (e.g., for a link).
+     * Adds a new text-based stat row (like Name or Level) to the user panel.
      */
-    addInfoRow: function({ id, label, value }) {
-        TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
-            if (document.getElementById(id)) return;
+    addTextStat: function({ id, label, value }) {
+        TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
+             if (document.getElementById(id)) return;
 
-            const p = document.createElement('p');
-            p.id = id;
-            p.className = 'menu-info-row___YG31c';
-            p.innerHTML = `
-                <span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span>
-                <span class="menu-value___gLaLR">${value}</span>`; // Value is not escaped to allow HTML
-
-            // Insert the new row directly after the points/merits block
-            pointsContainer.insertAdjacentElement('afterend', p);
+             if(sidebar.classList.contains('desktop___lmVhy')) {
+                const pointsContainer = sidebar.querySelector('div.points___UO9AU');
+                if(!pointsContainer) return;
+                const p = document.createElement('p');
+                p.id = id;
+                p.className = 'menu-info-row___YG31c';
+                p.innerHTML = `<span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span><span class="menu-value___gLaLR">${value}</span>`;
+                pointsContainer.insertAdjacentElement('afterend', p);
+             }
         });
     },
 
     /**
-     * Adds a new points-style block (like Money or Points) to the user panel.
-     * @param {object} options - The options for the new block.
-     * @param {string} options.id - A unique ID for the new block element.
-     * @param {string} options.label - The text label for the block (e.g., "Custom Stat").
-     * @param {string} options.value - The value to display.
+     * Adds a new numerical stat block with an icon (like Money or Points) to the user panel.
      */
-    addPointBlock: function({ id, label, value }) {
-         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
+    addIconStat: function({ id, label, value, svgIcon }) {
+        TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
             if (document.getElementById(id)) return;
 
-            const p = document.createElement('p');
-            p.id = id;
-            p.className = 'point-block___rQyUK';
-            p.tabIndex = 0;
-            p.innerHTML = `
-                <span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span>
-                <span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
+            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke="#fff" stroke-width="0" width="19" height="19" viewBox="0 0 19 19"><path d="M9.5,3A6.5,6.5,0,0,0,3,9.5a6.5,6.5,0,0,0,6.5,6.5,6.5,6.5,0,0,0,6.5-6.5A6.5,6.5,0,0,0,9.5,3Zm0,12A5.5,5.5,0,0,1,4,9.5,5.5,5.5,0,0,1,9.5,4,5.5,5.5,0,0,1,15,9.5,5.5,5.5,0,0,1,9.5,15ZM10,5H9v5h5V9H10Z"></path></svg>`;
 
-            pointsContainer.appendChild(p);
+            if(sidebar.classList.contains('desktop___lmVhy')) {
+                const pointsContainer = sidebar.querySelector('div.points___UO9AU');
+                if(!pointsContainer) return;
+                const p = document.createElement('p');
+                p.id = id;
+                p.className = 'point-block___rQyUK';
+                p.tabIndex = 0;
+                p.innerHTML = `<span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span><span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
+                pointsContainer.appendChild(p);
+            } else if (sidebar.classList.contains('mobile___s55hz')) {
+                const pointsContainer = sidebar.querySelector('div.points-mobile___gpalH');
+                if(!pointsContainer) return;
+                const a = document.createElement('a');
+                a.id = id;
+                a.href = '#';
+                a.className = 'point-block___rQyUK mobile___c7NBK';
+                a.tabIndex = 0;
+                a.innerHTML = `<span class="wai">${TornLibrary.utils.escapeHTML(label)}:</span><span class="point-icon___YtX8W">${svgIcon || defaultIcon}</span><span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
+                pointsContainer.appendChild(a);
+            }
         });
     },
 
     /**
      * Adds a new progress bar (like Energy or Nerve) to the user panel.
-     * @param {object} options - The options for the new bar.
-     * @param {string} options.id - A unique ID for the new bar element.
-     * @param {string} options.label - The name of the bar (e.g., "Script Cooldown").
-     * @param {number} options.current - The current value.
-     * @param {number} options.max - The maximum value.
-     * @param {string} [options.timer=''] - The countdown text to display.
-     * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
-        // The container for the bars is the last div inside .content___GVtZ_
-        TornLibrary.dom.onElementReady('.content___GVtZ_ > div:last-child', (barContainer) => {
+        TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
             if (document.getElementById(id)) return;
-
             const percentage = max > 0 ? (current / max) * 100 : 0;
 
-            const a = document.createElement('a');
-            a.id = id;
-            a.href = '#';
-            a.className = `bar___Bv5Ho ${colorClass} bar-desktop___p5Cas`;
-            a.tabIndex = 0;
-            a.innerHTML = `
-                <div class="bar-stats____l994">
-                    <p class="bar-name___cHBD8">${TornLibrary.utils.escapeHTML(label)}:</p>
-                    <p class="bar-value___NTdce">${current}/${max}</p>
-                    <p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>
-                </div>
-                <div class="progress___z5tk3">
-                    <div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div>
-                    <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
-                </div>`;
-            
-            barContainer.appendChild(a);
+            if(sidebar.classList.contains('desktop___lmVhy')) {
+                const barContainer = sidebar.querySelector('.content___GVtZ_ > div:last-child');
+                if(!barContainer) return;
+
+                const a = document.createElement('a');
+                a.id = id;
+                a.href = '#';
+                a.className = `bar___Bv5Ho ${colorClass} bar-desktop___p5Cas`;
+                a.tabIndex = 0;
+                a.innerHTML = `
+                    <div class="bar-stats____l994">
+                        <p class="bar-name___cHBD8">${TornLibrary.utils.escapeHTML(label)}:</p>
+                        <p class="bar-value___NTdce">${current}/${max}</p>
+                        <p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>
+                    </div>
+                    <div class="progress___z5tk3">
+                        <div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div>
+                        <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
+                    </div>`;
+                barContainer.appendChild(a);
+
+            } else if (sidebar.classList.contains('mobile___s55hz')) {
+                const barContainer = sidebar.querySelector('.bars-mobile___PDyjE');
+                if(!barContainer) return;
+
+                const a = document.createElement('a');
+                a.id = id;
+                a.href = '#';
+                a.className = `bar___Bv5Ho ${colorClass} bar-mobile___yMict`;
+                a.tabIndex = 0;
+                a.innerHTML = `
+                    <div class="bar-stats____l994 bar-stats-flex___zntBu">
+                        <i class="svg-icon-wrap___kBbPN"><svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke-width="0" width="11" height="11" viewBox="4.5 5 11 11"><path d="M123,330l1-5h-4l7-6-1,5h4Z" transform="translate(-115 -314)"></path></svg></i>
+                        <p class="wai">${TornLibrary.utils.escapeHTML(label)}:</p>
+                        <p class="bar-value___NTdce">${current} / ${max}</p>
+                        <span class="barDescWrapper___cXLqn">(<p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>)</span>
+                    </div>
+                    <div class="progress___z5tk3">
+                        <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
+                    </div>`;
+                barContainer.appendChild(a);
+            }
         });
     }
 };
