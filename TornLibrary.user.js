@@ -2010,21 +2010,25 @@ TornLibrary.page.racing = {
      * @returns {Array<{name: string, car: string, userId: string}>|null} An array of driver objects, or null if not on a race page or if the leaderboard isn't visible.
      */
     getDrivers: () => {
+        // This check is important. It prevents the function from running on the wrong page.
         if (TornLibrary.page.currentPage() !== 'racing') {
             return null;
         }
 
         const drivers = [];
-        const driverElements = document.querySelectorAll('#leaderBoard > li');
+        // This selector targets each list item in the leaderboard.
+        const driverElements = document.querySelectorAll('#leaderBoard > li[id^="lbr-"]');
 
         if (!driverElements || driverElements.length === 0) {
-            console.warn("TornLibrary.page.racing.getDrivers: Could not find driver elements on the page. You may not be in a race lobby or the page structure has changed.");
+            console.warn("TornLibrary.page.racing.getDrivers: Could not find driver elements. Are you in a race lobby?");
             return null;
         }
 
         driverElements.forEach(el => {
             const nameEl = el.querySelector('.name span');
             const carImgEl = el.querySelector('.car img');
+            
+            // Extracts the User ID from the element's ID (e.g., "lbr-2782979")
             const userIdMatch = el.id.match(/lbr-(\d+)/);
 
             if (nameEl && carImgEl && userIdMatch) {
