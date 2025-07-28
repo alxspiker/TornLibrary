@@ -1918,8 +1918,8 @@ TornLibrary.page.common = {
     _mobileLinkAdded: false,
 
     /**
-     * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
-     * This function is responsive-aware and robust.
+     * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
+     * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1927,12 +1927,15 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        // This function is unchanged and works correctly.
         if (this._linkAdded && this._mobileLinkAdded) return;
 
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
+            // --- DESKTOP LOGIC ---
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
                 if (this._linkAdded) return;
+                
+                // Find or create the "Scripts" header and link container.
+                // This logic is exclusive to the addMenuLink function.
                 let scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
                 if (!scriptsLinkContainer) {
                     const parentContainer = sidebarElement.querySelector('.sidebar-block___Ef1l1 .content___wSUdj');
@@ -1943,6 +1946,7 @@ TornLibrary.page.common = {
                     parentContainer.appendChild(scriptSectionWrapper);
                     scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
                 }
+
                 if (scriptsLinkContainer) {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
@@ -1951,8 +1955,11 @@ TornLibrary.page.common = {
                     scriptsLinkContainer.appendChild(desktopLink);
                     this._linkAdded = true;
                 }
+            
+            // --- MOBILE LOGIC ---
             } else if (sidebarElement.classList.contains('mobile___s55hz')) {
                 if (this._mobileLinkAdded) return;
+
                 const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
                 if (swiperWrapper) {
                     const mobileLink = document.createElement('div');
@@ -1976,17 +1983,14 @@ TornLibrary.page.common = {
      */
     addStatusIcon: function({ id, className, label, href = '#' }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
-            if (document.getElementById(id)) return; // Don't add if it already exists
-
+            if (document.getElementById(id)) return;
             const li = document.createElement('li');
             li.id = id;
-            li.className = className; // Use your custom class for styling
-
+            li.className = className;
             const a = document.createElement('a');
             a.href = href;
             a.setAttribute('aria-label', label);
             a.tabIndex = 0;
-
             li.appendChild(a);
             iconList.appendChild(li);
         });
@@ -2002,15 +2006,10 @@ TornLibrary.page.common = {
     addInfoRow: function({ id, label, value }) {
         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
             if (document.getElementById(id)) return;
-
             const p = document.createElement('p');
             p.id = id;
             p.className = 'menu-info-row___YG31c';
-            p.innerHTML = `
-                <span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span>
-                <span class="menu-value___gLaLR">${value}</span>`; // Value is not escaped to allow HTML
-
-            // Insert the new row directly after the points/merits block
+            p.innerHTML = `<span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span><span class="menu-value___gLaLR">${value}</span>`;
             pointsContainer.insertAdjacentElement('afterend', p);
         });
     },
@@ -2025,15 +2024,11 @@ TornLibrary.page.common = {
     addPointBlock: function({ id, label, value }) {
          TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
             if (document.getElementById(id)) return;
-
             const p = document.createElement('p');
             p.id = id;
             p.className = 'point-block___rQyUK';
             p.tabIndex = 0;
-            p.innerHTML = `
-                <span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span>
-                <span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
-
+            p.innerHTML = `<span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span><span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
             pointsContainer.appendChild(p);
         });
     },
@@ -2049,12 +2044,9 @@ TornLibrary.page.common = {
      * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
-        // The container for the bars is the last div inside .content___GVtZ_
         TornLibrary.dom.onElementReady('.content___GVtZ_ > div:last-child', (barContainer) => {
             if (document.getElementById(id)) return;
-
             const percentage = max > 0 ? (current / max) * 100 : 0;
-
             const a = document.createElement('a');
             a.id = id;
             a.href = '#';
@@ -2070,7 +2062,6 @@ TornLibrary.page.common = {
                     <div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div>
                     <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
                 </div>`;
-            
             barContainer.appendChild(a);
         });
     }
