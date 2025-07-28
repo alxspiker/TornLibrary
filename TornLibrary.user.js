@@ -1917,16 +1917,10 @@ TornLibrary.page.common = {
     _linkAdded: false,
     _mobileLinkAdded: false,
 
-    /**
-     * Internal helper to find a menu link container and its anchor tag by text content.
-     * @private
-     */
     _findMenuLink: function(name, callback) {
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
             const lowerCaseName = name.toLowerCase().trim();
             let found = false;
-
-            // Search desktop sidebar
             sidebarElement.querySelectorAll('.area-desktop___bpqAS').forEach(container => {
                 const linkNameEl = container.querySelector('.linkName___FoKha');
                 if (linkNameEl && linkNameEl.textContent.trim().toLowerCase() === lowerCaseName) {
@@ -1934,8 +1928,6 @@ TornLibrary.page.common = {
                     found = true;
                 }
             });
-
-            // Search mobile swiper menu
             sidebarElement.querySelectorAll('.area-mobile___BH0Ku').forEach(container => {
                 const linkNameEl = container.querySelector('a > span:last-child');
                 if (linkNameEl && linkNameEl.textContent.trim().toLowerCase() === lowerCaseName) {
@@ -1943,25 +1935,14 @@ TornLibrary.page.common = {
                     found = true;
                 }
             });
-
             if (!found) {
                 console.warn(`[TornLibrary.page.common] Could not find a menu link with the name "${name}".`);
             }
         });
     },
 
-    /**
-     * Adds a new link to the appropriate menu.
-     * @param {object} options - The options for the new link.
-     * @param {string} options.text - The label for the link.
-     * @param {string} [options.href='#'] - The URL the link should point to. Ignored if onClick is provided.
-     * @param {function(Event): void} [options.onClick] - A function to run when the link is clicked.
-     * @param {string} [options.svgIcon] - A string containing an SVG for the icon.
-     */
     addMenuLink: function({ text, href = '#', onClick, svgIcon }) {
         if (this._linkAdded && this._mobileLinkAdded) return;
-        
-        const effectiveHref = onClick ? 'javascript:void(0);' : href;
 
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
@@ -1979,7 +1960,7 @@ TornLibrary.page.common = {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
-                    desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${effectiveHref}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
+                    desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${href}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
                     if (onClick) { desktopLink.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
                     scriptsLinkContainer.appendChild(desktopLink);
                 }
@@ -1991,7 +1972,7 @@ TornLibrary.page.common = {
                     const mobileLink = document.createElement('div');
                     mobileLink.className = 'swiper-slide slide___se7hj';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
-                    mobileLink.innerHTML = `<div class="area-mobile___BH0Ku"><div class="area-row___iBD8N"><a href="${effectiveHref}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span>${TornLibrary.utils.escapeHTML(text)}</span></a></div></div>`;
+                    mobileLink.innerHTML = `<div class="area-mobile___BH0Ku"><div class="area-row___iBD8N"><a href="${href}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span>${TornLibrary.utils.escapeHTML(text)}</span></a></div></div>`;
                     if (onClick) { mobileLink.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
                     swiperWrapper.appendChild(mobileLink);
                     this._mobileLinkAdded = true;
@@ -2000,38 +1981,25 @@ TornLibrary.page.common = {
         });
     },
 
-    /**
-     * Shows or hides an existing menu link by its text.
-     * @param {string} name - The text of the link to modify (e.g., 'Casino', 'Items'). Case-insensitive.
-     * @param {boolean} isVisible - `true` to show the link, `false` to hide it.
-     */
     setMenuLinkVisible: function(name, isVisible) {
         this._findMenuLink(name, (container, link) => {
             if (container) container.style.display = isVisible ? '' : 'none';
         });
     },
 
-    /**
-     * Overrides the behavior of an existing menu link.
-     * @param {string} name - The text of the link to modify (e.g., 'Home', 'Gym'). Case-insensitive.
-     * @param {object} options - The new properties for the link.
-     * @param {string} [options.href] - The new URL for the link.
-     * @param {function(Event): void} [options.onClick] - A new function to run on click.
-     */
     overrideMenuLink: function(name, { href, onClick }) {
         this._findMenuLink(name, (container, link) => {
             if (!link || link.dataset.tlOverridden) return;
-
             const newLink = link.cloneNode(true);
 
+            if (href) {
+                newLink.href = href;
+            }
             if (onClick) {
-                newLink.href = 'javascript:void(0);';
                 newLink.addEventListener('click', (e) => {
                     e.preventDefault();
                     onClick(e);
                 });
-            } else if (href) {
-                newLink.href = href;
             }
 
             link.parentNode.replaceChild(newLink, link);
@@ -2039,10 +2007,6 @@ TornLibrary.page.common = {
         });
     },
 
-    /**
-     * Adds a new status icon to the user information panel.
-     * @param {function(Event): void} [options.onClick] - A function to run when the icon is clicked.
-     */
     addStatusIcon: function({ id, className, label, href = '#', onClick }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
             if (document.getElementById(id)) return;
@@ -2050,7 +2014,7 @@ TornLibrary.page.common = {
             li.id = id;
             li.className = className;
             const a = document.createElement('a');
-            a.href = onClick ? 'javascript:void(0);' : href;
+            a.href = href;
             if (onClick) { a.addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
             a.setAttribute('aria-label', label);
             a.tabIndex = 0;
@@ -2059,9 +2023,6 @@ TornLibrary.page.common = {
         });
     },
 
-    /**
-     * Adds a new text-based stat row (like Name or Level) to the user panel. (Desktop only).
-     */
     addTextStat: function({ id, label, value }) {
         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
             if (document.getElementById(id)) return;
@@ -2073,9 +2034,6 @@ TornLibrary.page.common = {
         });
     },
 
-    /**
-     * Adds a new numerical stat block with an icon (like Money or Points) to the user panel.
-     */
     addIconStat: function({ id, label, value, svgIcon }) {
          TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
             if (document.getElementById(id)) return;
@@ -2104,9 +2062,6 @@ TornLibrary.page.common = {
         });
     },
 
-    /**
-     * Adds a new progress bar (like Energy or Nerve) to the user panel.
-     */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
         TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
             if (document.getElementById(id)) return;
