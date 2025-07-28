@@ -1918,8 +1918,8 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
-     * This function is responsive-aware. It polls for both desktop and mobile menu containers
-     * and acts on whichever one is found first, cancelling the other.
+     * This function is responsive-aware. It detects mobile/desktop mode first via media query
+     * to poll only the relevant container, avoiding unnecessary polling.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1928,6 +1928,9 @@ TornLibrary.page.common = {
      */
     addMenuLink: function({ text, href, svgIcon }) {
         if (this._linkAdded) return;
+
+        // Detect mobile mode (adjust breakpoint if Torn's is different; 767px is a common mobile max-width)
+        const isMobile = TornLibrary.utils.isMobile;
 
         // --- Helper: Creates the desktop link HTML ---
         const createDesktopLink = () => {
@@ -1963,23 +1966,31 @@ TornLibrary.page.common = {
             return swiperSlideDiv;
         };
 
-        // --- Start polling for the DESKTOP sidebar's content area ---
-        TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
-            if (this._linkAdded) return; // If mobile found its element first, stop.
-            
-            console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
-            areasContainer.appendChild(createDesktopLink());
-            this._linkAdded = true;
-        });
+        if (isMobile) {
+            // --- Poll only for the MOBILE sidebar's swiper wrapper ---
+            TornLibrary.dom.onElementReady('.swiper-wrapper.swiper___DGw8D', (swiperWrapper) => {
+                if (this._linkAdded) return;
 
-        // --- Start polling for the MOBILE sidebar's swiper wrapper ---
-        TornLibrary.dom.onElementReady('.swiper-wrapper.swiper___DGw8D', (swiperWrapper) => {
-            if (this._linkAdded) return; // If desktop found its element first, stop.
+                console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
+                swiperWrapper.appendChild(createMobileLink());
+                this._linkAdded = true;
 
-            console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
-            swiperWrapper.appendChild(createMobileLink());
-            this._linkAdded = true;
-        });
+                // Update the swiper instance to recognize the new slide (assumes Swiper.js; inspect Torn's code for exact container class if needed)
+                const swiperContainer = swiperWrapper.parentElement; // Or use swiperWrapper.closest('.swiper-container-class-if-known')
+                if (swiperContainer && swiperContainer.swiper) {
+                    swiperContainer.swiper.update(); // Refreshes layout, slide count, etc.
+                }
+            });
+        } else {
+            // --- Poll only for the DESKTOP sidebar's content area ---
+            TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
+                if (this._linkAdded) return;
+                
+                console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
+                areasContainer.appendChild(createDesktopLink());
+                this._linkAdded = true;
+            });
+        }
     }
 };
 
