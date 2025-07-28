@@ -1914,12 +1914,12 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _linkAdded: false,
+    _linkAdded: false, // Universal flag to prevent adding any link more than once.
     _mobileLinkAdded: false,
 
     /**
-     * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
-     * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
+     * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
+     * This function is responsive-aware and robust.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1927,44 +1927,30 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
+        // This function is unchanged and works correctly.
         if (this._linkAdded && this._mobileLinkAdded) return;
 
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
-            // --- DESKTOP LOGIC ---
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
                 if (this._linkAdded) return;
-
-                let scriptsSection = document.getElementById('tl-scripts-section');
-                if (!scriptsSection) {
-                    scriptsSection = document.createElement('div');
-                    scriptsSection.id = 'tl-scripts-section';
-                    scriptsSection.className = 'sidebar-block___Ef1l1 desktop___aYLqo'; // Create a new main block
-                    scriptsSection.innerHTML = `
-                        <div class="content___wSUdj">
-                            <div class="toggle-block___oKpdF">
-                                <div class="header___RpWar desktop___ei8Er">
-                                    <h2 class="title___XfwKa">Scripts</h2>
-                                </div>
-                                <div class="toggle-content___BJ9Q9" id="tl-scripts-links-container">
-                                    <!-- Script links will be inserted here -->
-                                </div>
-                            </div>
-                        </div>`;
-                    // Append the entire new block to the main sidebar
-                    sidebarElement.appendChild(scriptsSection);
+                let scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
+                if (!scriptsLinkContainer) {
+                    const parentContainer = sidebarElement.querySelector('.sidebar-block___Ef1l1 .content___wSUdj');
+                    if (!parentContainer) return;
+                    const scriptSectionWrapper = document.createElement('div');
+                    scriptSectionWrapper.className = 'toggle-block___oKpdF';
+                    scriptSectionWrapper.innerHTML = `<div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div>`;
+                    parentContainer.appendChild(scriptSectionWrapper);
+                    scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
                 }
-
-                const scriptsLinkContainer = scriptsSection.querySelector('#tl-scripts-links-container');
                 if (scriptsLinkContainer) {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
                     desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${href}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
                     scriptsLinkContainer.appendChild(desktopLink);
+                    this._linkAdded = true;
                 }
-                this._linkAdded = true;
-
-            // --- MOBILE LOGIC ---
             } else if (sidebarElement.classList.contains('mobile___s55hz')) {
                 if (this._mobileLinkAdded) return;
                 const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
@@ -1982,62 +1968,93 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new status icon to the user information panel.
-     * (This function is correct and does not create a header).
+     * @param {object} options - The options for the new icon.
+     * @param {string} options.id - A unique ID for the new icon element.
+     * @param {string} options.className - A custom class name to style your icon (e.g., 'my-script-icon').
+     * @param {string} options.label - The tooltip text that appears on hover.
+     * @param {string} [options.href='#'] - The URL the icon should link to.
      */
     addStatusIcon: function({ id, className, label, href = '#' }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
-            if (document.getElementById(id)) return;
+            if (document.getElementById(id)) return; // Don't add if it already exists
+
             const li = document.createElement('li');
             li.id = id;
-            li.className = className;
+            li.className = className; // Use your custom class for styling
+
             const a = document.createElement('a');
             a.href = href;
             a.setAttribute('aria-label', label);
             a.tabIndex = 0;
+
             li.appendChild(a);
             iconList.appendChild(li);
         });
     },
 
     /**
-     * Adds a new information row to the user panel.
-     * (This function is correct and does not create a header).
+     * Adds a new information row (like Name or Level) to the user panel.
+     * @param {object} options - The options for the new row.
+     * @param {string} options.id - A unique ID for the new row element.
+     * @param {string} options.label - The text label for the row (e.g., "API Usage").
+     * @param {string} options.value - The value, which can be plain text or HTML (e.g., for a link).
      */
     addInfoRow: function({ id, label, value }) {
         TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
             if (document.getElementById(id)) return;
+
             const p = document.createElement('p');
             p.id = id;
             p.className = 'menu-info-row___YG31c';
-            p.innerHTML = `<span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span><span class="menu-value___gLaLR">${value}</span>`;
+            p.innerHTML = `
+                <span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span>
+                <span class="menu-value___gLaLR">${value}</span>`; // Value is not escaped to allow HTML
+
+            // Insert the new row directly after the points/merits block
             pointsContainer.insertAdjacentElement('afterend', p);
         });
     },
 
     /**
-     * Adds a new points-style block to the user panel.
-     * (This function is correct and does not create a header).
+     * Adds a new points-style block (like Money or Points) to the user panel.
+     * @param {object} options - The options for the new block.
+     * @param {string} options.id - A unique ID for the new block element.
+     * @param {string} options.label - The text label for the block (e.g., "Custom Stat").
+     * @param {string} options.value - The value to display.
      */
     addPointBlock: function({ id, label, value }) {
          TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
             if (document.getElementById(id)) return;
+
             const p = document.createElement('p');
             p.id = id;
             p.className = 'point-block___rQyUK';
             p.tabIndex = 0;
-            p.innerHTML = `<span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span><span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
+            p.innerHTML = `
+                <span class="name___ChDL3">${TornLibrary.utils.escapeHTML(label)}:</span>
+                <span class="value___mHNGb">${TornLibrary.utils.escapeHTML(value)}</span>`;
+
             pointsContainer.appendChild(p);
         });
     },
 
     /**
-     * Adds a new progress bar to the user panel.
-     * (This function is correct and does not create a header).
+     * Adds a new progress bar (like Energy or Nerve) to the user panel.
+     * @param {object} options - The options for the new bar.
+     * @param {string} options.id - A unique ID for the new bar element.
+     * @param {string} options.label - The name of the bar (e.g., "Script Cooldown").
+     * @param {number} options.current - The current value.
+     * @param {number} options.max - The maximum value.
+     * @param {string} [options.timer=''] - The countdown text to display.
+     * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
+        // The container for the bars is the last div inside .content___GVtZ_
         TornLibrary.dom.onElementReady('.content___GVtZ_ > div:last-child', (barContainer) => {
             if (document.getElementById(id)) return;
+
             const percentage = max > 0 ? (current / max) * 100 : 0;
+
             const a = document.createElement('a');
             a.id = id;
             a.href = '#';
@@ -2053,6 +2070,7 @@ TornLibrary.page.common = {
                     <div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div>
                     <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
                 </div>`;
+            
             barContainer.appendChild(a);
         });
     }
