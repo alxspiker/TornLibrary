@@ -1918,8 +1918,8 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
-     * This function is responsive-aware. It polls for both desktop and mobile menu containers
-     * and acts on whichever one is found first, cancelling the other.
+     * This function is responsive-aware. It waits for the main sidebar container and then
+     * checks its class to determine which link to add.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1927,8 +1927,6 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        if (this._linkAdded) return;
-
         // --- Helper: Creates the desktop link HTML ---
         const createDesktopLink = () => {
             const areaDiv = document.createElement('div');
@@ -1947,15 +1945,13 @@ TornLibrary.page.common = {
         // --- Helper: Creates the mobile link HTML for the bottom swiper ---
         const createMobileLink = () => {
             const swiperSlideDiv = document.createElement('div');
-            swiperSlideDiv.className = 'swiper-slide slide___se7hj'; // Matches existing slides
+            swiperSlideDiv.className = 'swiper-slide slide___se7hj';
             const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
             swiperSlideDiv.innerHTML = `
                 <div class="area-mobile___BH0Ku">
                     <div class="area-row___iBD8N">
                         <a href="${href}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink">
-                            <span class="svgIconWrap___AMIqR">
-                                <span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span>
-                            </span>
+                            <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span>
                             <span>${TornLibrary.utils.escapeHTML(text)}</span>
                         </a>
                     </div>
@@ -1963,22 +1959,27 @@ TornLibrary.page.common = {
             return swiperSlideDiv;
         };
 
-        // --- Start polling for the DESKTOP sidebar's content area ---
-        TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
-            if (this._linkAdded) return; // If mobile found its element first, stop.
-            
-            console.log("[TornLibrary.page.common] Desktop mode detected. Adding link to sidebar.");
-            areasContainer.appendChild(createDesktopLink());
-            this._linkAdded = true;
-        });
+        // --- SINGLE, ROBUST LOGIC ---
+        // We wait for the sidebar container itself. Once it exists, we inspect its classes
+        // to determine the current layout mode.
+        TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
+            if (this._linkAdded) return;
 
-        // --- Start polling for the MOBILE sidebar's swiper wrapper ---
-        TornLibrary.dom.onElementReady('.swiper-wrapper.swiper___DGw8D', (swiperWrapper) => {
-            if (this._linkAdded) return; // If desktop found its element first, stop.
-
-            console.log("[TornLibrary.page.common] Mobile mode detected. Adding link to bottom bar.");
-            swiperWrapper.appendChild(createMobileLink());
-            this._linkAdded = true;
+            // Check for the desktop-specific class on the sidebar.
+            if (sidebarElement.classList.contains('desktop___lmVhy')) {
+                const areasContainer = sidebarElement.querySelector('div.areas-desktop___mqYu6');
+                if (areasContainer) {
+                    areasContainer.appendChild(createDesktopLink());
+                    this._linkAdded = true;
+                }
+            // Check for the mobile-specific class on the sidebar.
+            } else if (sidebarElement.classList.contains('mobile___s55hz')) {
+                const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
+                if (swiperWrapper) {
+                    swiperWrapper.appendChild(createMobileLink());
+                    this._linkAdded = true;
+                }
+            }
         });
     }
 };
