@@ -2083,6 +2083,132 @@ TornLibrary.page.common = {
                 barContainer.appendChild(a);
             }
         });
+    },
+
+    addCustomChatWindow: function({ id, title, iconSVG, content, width = 300, height = 400, onOpen, onClose }) {
+        if (!id || !title) {
+            console.error('[TornLibrary.page.common.addCustomChatWindow] Missing required id or title.');
+            return;
+        }
+        TornLibrary.dom.onElementReady('#chatRoot', (chatRoot) => {
+            if (document.getElementById(`custom_panel_button:${id}`)) return;
+
+            // Add button to chat bar
+            const chatBar = chatRoot.querySelector('.root___oWxEV');
+            if (!chatBar) return console.warn('[TornLibrary] Chat bar not found.');
+
+            const buttonContainer = document.createElement('div');
+            buttonContainer.className = 'root___cYD0i';
+
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'root___WHFbh root___K2Yex root___RLOBS';
+            button.id = `custom_panel_button:${id}`;
+            button.title = title;
+
+            // Use provided iconSVG or default (simple circle icon)
+            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="24" height="24" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>`;
+            button.innerHTML = iconSVG || defaultIcon;
+
+            buttonContainer.appendChild(button);
+            // Insert before the people/settings buttons for visibility
+            chatBar.insertBefore(buttonContainer, chatBar.querySelector('#people_panel_button') || chatBar.lastChild);
+
+            // Panel management
+            let panelItem = null;
+
+            const updatePositions = () => {
+                const openItems = Array.from(chatRoot.querySelectorAll('.item___ydsFW:has(.visible___dJHqr)'));
+                openItems.forEach((item, index) => {
+                    item.style.transform = `translateX(${-303 * index}px)`;
+                    item.style.transitionDuration = '150ms';
+                });
+            };
+
+            const createPanel = () => {
+                if (panelItem) return;
+
+                panelItem = document.createElement('div');
+                panelItem.className = 'item___ydsFW';
+                panelItem.style.transform = 'translateX(0px)';
+                panelItem.style.transitionDuration = '150ms';
+
+                const panel = document.createElement('div');
+                panel.className = 'root___FmdS_ root___ZIY55 visible___dJHqr root____TLtV';
+                panel.id = `custom_panel_${id}`;
+                panel.style.width = `${width}px`;
+                panel.style.height = `${height}px`;
+                panel.style.transitionDuration = '150ms';
+
+                // Header (copied from HTML, with escape for safety)
+                const header = document.createElement('div');
+                header.className = 'root___VXwBe';
+                header.innerHTML = `
+                    <button type="button" class="root___WHFbh root___K2Yex header___hEWvp" style="cursor: grab;">
+                        <div class="actionButton___x3Hlp enabled___rxiMF" role="button" tabindex="0">
+                            <span class="root___xn40j headingH1___RwTDm overflow___GW3hU title___Bmq5P">${TornLibrary.utils.escapeHTML(title)}</span>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="icon_minimize" viewBox="0 0 24 24" width="24" height="24" class="root___DYylw icon___q4KYz minimizeIcon___lG55d" aria-label="Minimize" tabindex="0">
+                            <defs><linearGradient id="icon_gradient_min" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox"><stop offset="0"/><stop offset="1"/></linearGradient></defs>
+                            <g fill="url(#icon_gradient_min)"><rect x="0" y="21" width="24" height="3"></rect></g>
+                        </svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" id="icon_close" viewBox="0 0 24 24" width="24" height="24" class="root___DYylw icon___q4KYz closeIcon___Vfc9Y" aria-label="Close" tabindex="0">
+                            <defs><linearGradient id="icon_gradient_close" x1="0.5" x2="0.5" y2="1" gradientUnits="objectBoundingBox"><stop offset="0"/><stop offset="1"/></linearGradient></defs>
+                            <g fill="url(#icon_gradient_close)"><g transform="scale(1.28) translate(2.4,2.4)"><path d="M14,11.776,9.15,6.988l4.783-4.831L11.776,0,6.986,4.852,2.138.067,0,2.206,4.854,7.012.067,11.861,2.206,14l4.8-4.852,4.833,4.785Z"/></g></g>
+                        </svg>
+                    </button>
+                `;
+
+                // Content wrapper (like native chat content)
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'content___vtupF';
+                if (typeof content === 'string') {
+                    contentDiv.innerHTML = content;
+                } else if (content instanceof HTMLElement) {
+                    contentDiv.appendChild(content);
+                }
+
+                panel.appendChild(header);
+                panel.appendChild(contentDiv);
+                panelItem.appendChild(panel);
+
+                // Insert into DnD container (.root___Io7i2)
+                const dndContainer = chatRoot.querySelector('.root___Io7i2');
+                if (dndContainer) {
+                    dndContainer.insertBefore(panelItem, dndContainer.firstChild); // Add as leftmost
+                }
+
+                updatePositions();
+                if (onOpen) onOpen(panel);
+
+                // Event listeners for close/minimize
+                header.querySelector('.closeIcon___Vfc9Y')?.addEventListener('click', closePanel);
+                header.querySelector('.minimizeIcon___lG55d')?.addEventListener('click', minimizePanel);
+            };
+
+            const closePanel = () => {
+                if (panelItem) {
+                    panelItem.remove();
+                    panelItem = null;
+                    updatePositions();
+                    button.classList.remove('opened___kN9vs');
+                    if (onClose) onClose();
+                }
+            };
+
+            const minimizePanel = () => {
+                closePanel(); // Treat minimize as close for now; extend later if needed
+            };
+
+            button.addEventListener('click', () => {
+                if (panelItem) {
+                    closePanel();
+                } else {
+                    createPanel();
+                    button.classList.add('opened___kN9vs');
+                }
+            });
+        });
     }
 };
 
