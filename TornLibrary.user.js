@@ -1927,7 +1927,6 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
-        // This function is unchanged and works correctly.
         if (this._linkAdded && this._mobileLinkAdded) return;
 
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
@@ -1940,7 +1939,7 @@ TornLibrary.page.common = {
                     const scriptSectionWrapper = document.createElement('div');
                     scriptSectionWrapper.className = 'toggle-block___oKpdF';
                     scriptSectionWrapper.innerHTML = `<div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div>`;
-                    parentContainer.appendChild(scriptSectionWrapper);
+                    parentContainer.prepend(scriptSectionWrapper);
                     scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
                 }
                 if (scriptsLinkContainer) {
