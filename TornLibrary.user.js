@@ -192,84 +192,6 @@ TornLibrary.utils = {
     }
 };
 
-TornLibrary.config = {
-    /**
-     * Configuration Management.
-     */
-    _data: {},
-    _defaults: {},
-    _storageKey: 'TornLibraryConfig',
-    _apiKeyStorageKey: 'TornLibraryApiKey',
-
-    /**
-     * Initializes the config manager for a script. This must be awaited.
-     * @param {string} storageKey - A unique key for this script's settings (e.g., 'MyScriptConfig').
-     * @param {object} defaults - An object containing default values for all settings.
-     * @returns {Promise<void>}
-     */
-    async init(storageKey, defaults) {
-        this._storageKey = storageKey;
-        this._apiKeyStorageKey = `${storageKey}_apiKey`;
-        this._defaults = { ...defaults };
-        try {
-            // **FIX**: Use async GM wrapper
-            const storedData = await TornLibrary.storage.gm.getValue(this._storageKey, '{}');
-            const storedApiKey = await TornLibrary.storage.gm.getValue(this._apiKeyStorageKey, '');
-
-            this._data = { ...this._defaults, ...JSON.parse(storedData) };
-            this._data.apiKey = storedApiKey;
-        } catch (e) {
-            console.error('TornLibrary.config: Failed to load configuration.', e);
-            const storedApiKey = await TornLibrary.storage.gm.getValue(this._apiKeyStorageKey, '');
-            this._data = { ...this._defaults, apiKey: storedApiKey };
-        }
-        // Ensure all default keys exist in the loaded data
-        for (const key in this._defaults) {
-            if (!(key in this._data)) this._data[key] = this._defaults[key];
-        }
-    },
-
-    /**
-     * Saves all current settings (except API key) to storage.
-     * @returns {Promise<void>}
-     */
-    async save() {
-        const dataToSave = { ...this._data };
-        delete dataToSave.apiKey;
-        // **FIX**: Use async GM wrapper
-        await TornLibrary.storage.gm.setValue(this._storageKey, JSON.stringify(dataToSave));
-    },
-
-    get(key) {
-        return key in this._data ? this._data[key] : (this._defaults[key] || undefined);
-    },
-
-    /**
-     * Sets a configuration value and saves it.
-     * @param {string} key - The key of the setting.
-     * @param {*} value - The value to set.
-     * @returns {Promise<void>}
-     */
-    async set(key, value) {
-        this._data[key] = value;
-        if (key === 'apiKey') {
-            // **FIX**: Use async GM wrapper
-            await TornLibrary.storage.gm.setValue(this._apiKeyStorageKey, value);
-        } else {
-            await this.save();
-        }
-    },
-
-    /**
-     * Resets all settings to their defaults. The API key is preserved.
-     * @returns {Promise<void>}
-     */
-    async clear() {
-        this._data = { ...this._defaults, apiKey: this.get('apiKey') };
-        await this.save();
-    }
-};
-
 TornLibrary.api = {
     /**
      * Torn API v2 Interaction Utilities.
@@ -1645,8 +1567,6 @@ TornLibrary.dom = {
             }
         }, 250); // Check every 250ms
     },
-
-    // --- Other functions in TornLibrary.dom remain the same ---
     waitForElement(selector, callback, options = {}) {
         const { target = document.body, disconnect = true } = options;
         const existingElement = document.querySelector(selector);
@@ -1698,100 +1618,6 @@ TornLibrary.dom = {
         });
         observer.observe(target, { childList: true, subtree: true });
         return observer;
-    }
-};
-
-TornLibrary.storage = {
-    /**
-     * Persistent Storage Utilities.
-     */
-    local: {
-        /**
-         * Wrapper for browser `localStorage`.
-         */
-        get: (key, defaultValue = null) => {
-            const value = localStorage.getItem(key);
-            // Safer parsing for JSON
-            try {
-                return value !== null ? JSON.parse(value) : defaultValue;
-            } catch (e) {
-                return value !== null ? value : defaultValue;
-            }
-        },
-        set: (key, value) => {
-            const valueToStore = typeof value === 'object' ? JSON.stringify(value) : value;
-            localStorage.setItem(key, valueToStore);
-        }
-    },
-
-    gm: {
-        /**
-         * Wrapper for userscript manager storage (e.g., `GM_setValue`), handling API inconsistencies.
-         */
-        getValue: async (key, defaultValue = null) => {
-            if (typeof GM_getValue === 'function') return GM_getValue(key, defaultValue);
-            if (typeof GM !== 'undefined' && typeof GM.getValue === 'function') return await GM.getValue(key, defaultValue);
-            console.warn('TornLibrary: Greasemonkey storage is not available.');
-            return defaultValue;
-        },
-        setValue: async (key, value) => {
-            if (typeof GM_setValue === 'function') return GM_setValue(key, value); // GM_setValue can be async or sync
-            if (typeof GM !== 'undefined' && typeof GM.setValue === 'function') return await GM.setValue(key, value);
-            console.warn('TornLibrary: Greasemonkey storage is not available.');
-        },
-        // **NEW**: Added for completeness and use in LogManager
-        deleteValue: async (key) => {
-            if (typeof GM_deleteValue === 'function') return GM_deleteValue(key);
-            if (typeof GM !== 'undefined' && typeof GM.deleteValue === 'function') return await GM.deleteValue(key);
-            console.warn('TornLibrary: Greasemonkey storage is not available.');
-        }
-    },
-
-    /**
-     * Creates a manager for a persistent, size-limited log in GM storage.
-     * @param {object} options - Configuration for the log manager.
-     * @param {string} options.key - The storage key for the log.
-     * @param {number} [options.limit=50] - The maximum number of entries to keep in the log.
-     * @returns {{get: function(): Promise<Array>, add: function(any): Promise<void>, clear: function(): Promise<void>}} Log manager object.
-     */
-    async createLogManager({ key, limit = 50 }) {
-        let log = [];
-        try {
-            // **FIX**: Use the async wrapper
-            const storedLog = await this.gm.getValue(key, '[]');
-            log = JSON.parse(storedLog);
-        } catch (e) {
-            log = [];
-        }
-
-        // **FIX**: save is now async
-        const save = async () => {
-            await this.gm.setValue(key, JSON.stringify(log));
-        };
-
-        return {
-            // **FIX**: get now returns a Promise
-            get: async () => {
-                // Re-fetch from storage to ensure it's up to date if multiple tabs are open
-                const currentLog = await this.gm.getValue(key, '[]');
-                try {
-                    return JSON.parse(currentLog);
-                } catch {
-                    return [];
-                }
-            },
-            // **FIX**: add is now async
-            add: async (entry) => {
-                log.unshift(entry); // Add to the beginning
-                if (log.length > limit) log = log.slice(0, limit);
-                await save();
-            },
-            // **FIX**: clear is now async
-            clear: async () => {
-                log = [];
-                await this.gm.deleteValue(key);
-            }
-        };
     }
 };
 
@@ -1848,143 +1674,10 @@ TornLibrary.ui = {
         TornLibrary.dom.addStyle(`
             /* --- Popup & Notification Styles (Unchanged) --- */
             .tl-popup-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);display:flex;justify-content:center;align-items:center;z-index:1000;backdrop-filter:blur(3px)}.tl-popup-content{background:#333;color:#eee;border-radius:8px;border:1px solid #444;width:90%;max-height:90vh;overflow-y:auto;padding:20px;box-shadow:0 5px 20px rgba(0,0,0,0.3)}.tl-popup-title{font-size:1.2em;font-weight:700;margin-bottom:15px;padding-bottom:10px;border-bottom:1px solid #555;display:flex;justify-content:space-between;align-items:center}.tl-popup-close{background:0 0;border:none;color:#eee;font-size:1.5em;cursor:pointer;padding:0 5px;line-height:1}.tl-popup-close:hover{color:#fff}.tl-toggle-container{display:flex;align-items:center;justify-content:space-between;margin:10px 0}.tl-toggle-switch{position:relative;display:inline-block;width:45px;height:24px;flex-shrink:0}.tl-toggle-switch input{opacity:0;width:0;height:0}.tl-toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:#555;transition:.3s;border-radius:12px}.tl-toggle-slider:before{position:absolute;content:'';height:20px;width:20px;left:2px;bottom:2px;background-color:#fff;transition:.3s;border-radius:50%}.tl-toggle-switch input:checked+.tl-toggle-slider{background-color:#4CAF50}.tl-toggle-switch input:checked+.tl-toggle-slider:before{transform:translateX(21px)}.tl-notification{position:fixed;bottom:20px;right:20px;color:#fff;padding:12px 20px;border-radius:4px;box-shadow:0 2px 8px rgba(0,0,0,0.3);z-index:9999;font-size:14px;opacity:0;transition:opacity .3s ease,transform .3s ease;transform:translateY(20px)}.tl-notification.tl-visible{opacity:1;transform:translateY(0)}.tl-notification.tl-info{background:#2196F3}.tl-notification.tl-success{background:#4CAF50}.tl-notification.tl-error{background:#f44336}
-            /* --- Style for custom sidebar links --- */
-            .tl-sidebar-link .defaultIcon___iiNis svg { filter: grayscale(100%) brightness(1.5); }
         `);
         this._stylesAdded = true;
     },
 
-    _initSidebarListener() {
-        if (this._sidebarListenerAttached) return;
-
-        console.log('[TornLibrary] Attaching permanent sidebar click listener to document.body.');
-        document.body.addEventListener('click', (event) => {
-            // Find the closest parent that is one of our links
-            const linkElement = event.target.closest('.tl-sidebar-link');
-            if (!linkElement) {
-                return; // The click was not on one of our links.
-            }
-
-            // Prevent the default link behavior (e.g., navigating to '#')
-            event.preventDefault();
-
-            const linkId = linkElement.id;
-            if (this._sidebarCallbacks.has(linkId)) {
-                console.log(`[TornLibrary] Delegated click detected for link ID: "${linkId}". Firing callback.`);
-                const callback = this._sidebarCallbacks.get(linkId);
-                callback(event); // Execute the stored callback function
-            }
-        });
-        
-        this._sidebarListenerAttached = true;
-    },
-
-    createPopup({ title, content, id = '', maxWidth = '600px' }) {
-        // This function is unchanged
-        this._addStyles();
-        const existing = document.getElementById(id);
-        if (existing) existing.remove();
-        const popup = document.createElement('div');
-        if (id) popup.id = id;
-        popup.className = 'tl-popup-overlay';
-        popup.innerHTML = `
-            <div class="tl-popup-content" style="max-width: ${maxWidth};">
-                <div class="tl-popup-title">
-                    <span>${TornLibrary.utils.escapeHTML(title)}</span>
-                    <button class="tl-popup-close" title="Close">×</button>
-                </div>
-                <div class="tl-popup-body"></div>
-            </div>`;
-        const body = popup.querySelector('.tl-popup-body');
-        if (typeof content === 'string') body.innerHTML = content;
-        else body.appendChild(content);
-        const close = () => popup.remove();
-        popup.querySelector('.tl-popup-close').addEventListener('click', close);
-        popup.addEventListener('click', (e) => { if (e.target === popup) close(); });
-        document.body.appendChild(popup);
-        return popup;
-    },
-
-    createToggle({ label, checked = false, onChange }) {
-        // This function is unchanged
-        this._addStyles();
-        const container = document.createElement('div');
-        container.className = 'tl-toggle-container';
-        const labelEl = document.createElement('label');
-        labelEl.textContent = label;
-        const switchEl = document.createElement('label');
-        switchEl.className = 'tl-toggle-switch';
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.checked = checked;
-        if (onChange) input.addEventListener('change', onChange);
-        const slider = document.createElement('span');
-        slider.className = 'tl-toggle-slider';
-        switchEl.append(input, slider);
-        const inputId = `tl-toggle-${Math.random().toString(36).substring(2, 9)}`;
-        input.id = inputId;
-        labelEl.htmlFor = inputId;
-        container.append(labelEl, switchEl);
-        return container;
-    },
-
-    showNotification(message, type = 'info', duration = 3000) {
-        // This function is unchanged
-        this._addStyles();
-        const notif = document.createElement('div');
-        notif.className = `tl-notification tl-${type}`;
-        notif.textContent = message;
-        document.body.appendChild(notif);
-        const removeNotif = () => {
-            notif.classList.remove('tl-visible');
-            notif.addEventListener('transitionend', () => notif.remove(), { once: true });
-        };
-        requestAnimationFrame(() => notif.classList.add('tl-visible'));
-        setTimeout(removeNotif, duration);
-    },
-    addMenuCommand(label, callback, options) { if (typeof GM_registerMenuCommand === 'function') GM_registerMenuCommand(label, callback, options); },
-
-    /**
-     * Injects a new link into the main Torn sidebar navigation and ensures it stays there.
-     * @param {object} options - Configuration for the sidebar link.
-     * @param {string} options.id - A unique ID for your link element.
-     * @param {string} options.label - The text to display for the link.
-     * @param {function(Event): void} options.onClick - The function to call when the link is clicked.
-     * @param {string} [options.icon] - Optional SVG HTML string for the icon.
-     */
-    addSidebarLink({ id, label, onClick, icon }) {
-        this._addStyles();
-        this._initSidebarListener(); // Ensure our single, permanent listener is attached.
-        
-        // Store the callback function, associating it with the unique ID.
-        this._sidebarCallbacks.set(id, onClick);
-
-        // The logic to add/re-add the VISUAL element remains the same.
-        const ensureLinkExists = (sidebar) => {
-            if (!document.getElementById(id)) {
-                const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09-.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
-                const linkContainer = document.createElement('div');
-                linkContainer.id = id;
-                linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
-                // NOTE: No event listener is attached here anymore!
-                linkContainer.innerHTML = `
-                    <div class="area-row___iBD8N">
-                        <a href="#" class="desktopLink___SG2RU">
-                            <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span></span>
-                            <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
-                        </a>
-                    </div>`;
-                sidebar.appendChild(linkContainer);
-            }
-        };
-
-        TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
-            ensureLinkExists(sidebar);
-            const observer = new MutationObserver(() => ensureLinkExists(sidebar));
-            observer.observe(sidebar, { childList: true });
-        });
-    },
-
     createPopup({ title, content, id = '', maxWidth = '600px' }) {
         // This function is unchanged
         this._addStyles();
@@ -2049,66 +1742,68 @@ TornLibrary.ui = {
         setTimeout(removeNotif, duration);
     },
 
-    /**
-     * @deprecated Use addSidebarLink for better user experience.
-     */
-    addMenuCommand(label, callback, options) {
-        if (typeof GM_registerMenuCommand === 'function') {
-            GM_registerMenuCommand(label, callback, options);
-        }
+    createPopup({ title, content, id = '', maxWidth = '600px' }) {
+        // This function is unchanged
+        this._addStyles();
+        const existing = document.getElementById(id);
+        if (existing) existing.remove();
+        const popup = document.createElement('div');
+        if (id) popup.id = id;
+        popup.className = 'tl-popup-overlay';
+        popup.innerHTML = `
+            <div class="tl-popup-content" style="max-width: ${maxWidth};">
+                <div class="tl-popup-title">
+                    <span>${TornLibrary.utils.escapeHTML(title)}</span>
+                    <button class="tl-popup-close" title="Close">×</button>
+                </div>
+                <div class="tl-popup-body"></div>
+            </div>`;
+        const body = popup.querySelector('.tl-popup-body');
+        if (typeof content === 'string') body.innerHTML = content;
+        else body.appendChild(content);
+        const close = () => popup.remove();
+        popup.querySelector('.tl-popup-close').addEventListener('click', close);
+        popup.addEventListener('click', (e) => { if (e.target === popup) close(); });
+        document.body.appendChild(popup);
+        return popup;
     },
 
-    /**
-     * Injects a new link into the main Torn sidebar navigation and ensures it stays there.
-     * @param {object} options - Configuration for the sidebar link.
-     * @param {string} options.id - A unique ID for your link element.
-     * @param {string} options.label - The text to display for the link.
-     * @param {function(Event): void} options.onClick - The function to call when the link is clicked.
-     * @param {string} [options.icon] - Optional SVG HTML string for the icon.
-     */
-    addSidebarLink({ id, label, onClick, icon }) {
+    createToggle({ label, checked = false, onChange }) {
+        // This function is unchanged
         this._addStyles();
+        const container = document.createElement('div');
+        container.className = 'tl-toggle-container';
+        const labelEl = document.createElement('label');
+        labelEl.textContent = label;
+        const switchEl = document.createElement('label');
+        switchEl.className = 'tl-toggle-switch';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.checked = checked;
+        if (onChange) input.addEventListener('change', onChange);
+        const slider = document.createElement('span');
+        slider.className = 'tl-toggle-slider';
+        switchEl.append(input, slider);
+        const inputId = `tl-toggle-${Math.random().toString(36).substring(2, 9)}`;
+        input.id = inputId;
+        labelEl.htmlFor = inputId;
+        container.append(labelEl, switchEl);
+        return container;
+    },
 
-        const svgIcon = icon || `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" height="18" width="18" viewBox="0 0 20 20"><path d="M10,8.33A1.67,1.67,0,1,0,11.67,10,1.67,1.67,0,0,0,10,8.33ZM18.33,11.23l-1.4.35a7.3,7.3,0,0,0-1.13,2.23l.53,1.52a.83.83,0,0,1-.53,1l-1.25.72a.83.83,0,0,1-1.09-.27l-1-1.23a6.86,6.86,0,0,0-2.58,0l-1,1.23a.83.83,0,0,1-1.09-.27L6.6,17.05a.83.83,0,0,1-.53-1l.53-1.52A7.3,7.3,0,0,0,5.47,12.3l-1.4-.35a.83.83,0,0,1-.6-1V8.2a.83.83,0,0,1,.6-.95l1.4-.35a7.3,7.3,0,0,0,1.13-2.23L5.67,3.15a.83.83,0,0,1,.53-1l1.25-.72a.83.83,0,0,1,1.09.27l1,1.23a6.86,6.86,0,0,0,2.58,0l1-1.23a.83.83,0,0,1,1.09-.27l1.25.72a.83.83,0,0,1,.53,1l-.53,1.52a7.3,7.3,0,0,0,1.13,2.23l1.4.35a.83.83,0,0,1,.6.95v1.68A.83.83,0,0,1,18.33,11.23Z" fill="#777"></path></svg>`;
-
-        const linkContainer = document.createElement('div');
-        linkContainer.id = id;
-        linkContainer.className = 'area-desktop___bpqAS tl-sidebar-link';
-        linkContainer.innerHTML = `
-            <div class="area-row___iBD8N">
-                <a href="#" class="desktopLink___SG2RU">
-                    <span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon}</span></span>
-                    <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(label)}</span>
-                </a>
-            </div>`;
-        linkContainer.querySelector('a')?.addEventListener('click', (e) => {
-            e.preventDefault();
-            onClick(e);
-        });
-
-        // This function checks if the link exists and adds it if it doesn't.
-        const ensureLinkExists = (sidebar) => {
-            if (!document.getElementById(id)) {
-                sidebar.appendChild(linkContainer);
-                console.info(`[TornLibrary] Added (or re-added) sidebar link: "${label}"`);
-            }
+    showNotification(message, type = 'info', duration = 3000) {
+        // This function is unchanged
+        this._addStyles();
+        const notif = document.createElement('div');
+        notif.className = `tl-notification tl-${type}`;
+        notif.textContent = message;
+        document.body.appendChild(notif);
+        const removeNotif = () => {
+            notif.classList.remove('tl-visible');
+            notif.addEventListener('transitionend', () => notif.remove(), { once: true });
         };
-
-        // Find the sidebar and then set up a permanent guard.
-        TornLibrary.dom.onElementReady('.toggle-content___BJ9Q9', (sidebar) => {
-            // 1. Add the link for the first time.
-            ensureLinkExists(sidebar);
-
-            // 2. Create a persistent observer to act as a "guard".
-            const observer = new MutationObserver(() => {
-                // When ANY change happens in the sidebar, we re-run our check.
-                // This will re-add the link if the framework has wiped it out.
-                ensureLinkExists(sidebar);
-            });
-
-            // 3. Tell the guard to watch the sidebar for any changes to its children.
-            observer.observe(sidebar, { childList: true });
-        });
+        requestAnimationFrame(() => notif.classList.add('tl-visible'));
+        setTimeout(removeNotif, duration);
     }
 };
 
@@ -2175,5 +1870,172 @@ TornLibrary.export = {
         const separatorRow = `| ${headers.map(() => '---').join(' | ')} |`;
         const bodyRows = data.map(row => `| ${headers.map(h => (row[h.key] ?? '').toString().replace(/\|/g, '\\|')).join(' | ')} |`);
         return [headerRow, separatorRow, ...bodyRows].join('\n');
+    }
+};
+
+TornLibrary.page = {
+    /**
+     * Page-Specific Helpers & Data Scrapers.
+     * Contains sub-modules for interacting with the DOM on specific Torn pages.
+     * Example: TornLibrary.page.racing.getDrivers()
+     */
+
+    /**
+     * Identifies the current page based on the URL. Prioritizes the 'sid' parameter
+     * for pages loaded via loader.php, falling back to the filename.
+     * @returns {string} The name of the current page (e.g., 'racing', 'itemmarket', 'gym').
+     */
+    currentPage: () => {
+        const params = new URLSearchParams(window.location.search);
+        const sid = params.get('sid');
+        if (sid) return sid; // Handles pages like loader.php?sid=racing
+
+        const path = window.location.pathname;
+        if (path === '/' || path.startsWith('/index.php')) return 'index';
+
+        // Fallback for pages with a direct filename
+        const page = path.substring(path.lastIndexOf('/') + 1).split('.')[0];
+        return page || 'unknown';
+    },
+
+    /**
+     * Retrieves the Torn User ID of the user whose profile is being viewed.
+     * Returns null if not on a profile page.
+     * @returns {string|null} The User ID from the 'XID' URL parameter.
+     */
+    getProfileId: () => {
+        const params = new URLSearchParams(window.location.search);
+        return params.get('XID');
+    }
+};
+
+/**
+ * @namespace TornLibrary.page.common
+ * @description Functions for interacting with elements common to most Torn pages.
+ */
+TornLibrary.page.common = {
+    /**
+     * Adds a new link to the main sidebar and the mobile menu.
+     * It safely waits for the menu elements to be available before adding the link.
+     *
+     * @param {object} options - The options for the new link.
+     * @param {string} options.text - The label for the link (e.g., 'My Script').
+     * @param {string} options.href - The URL the link should point to (e.g., '/messages.php').
+     * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
+     */
+    addMenuLink: ({ text, href, svgIcon }) => {
+        // --- Helper function to create the desktop sidebar link ---
+        const createDesktopLink = () => {
+            const areaDiv = document.createElement('div');
+            areaDiv.className = 'area-desktop___bpqAS';
+
+            // A default placeholder icon if one isn't provided.
+            const defaultIcon = `
+                <svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16">
+                    <path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path>
+                </svg>`;
+
+            areaDiv.innerHTML = `
+                <div class="area-row___iBD8N">
+                    <a href="${href}" class="desktopLink___SG2RU">
+                        <span class="svgIconWrap___AMIqR">
+                            <span class="defaultIcon___iiNis mobile___paLva">
+                                ${svgIcon || defaultIcon}
+                            </span>
+                        </span>
+                        <span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span>
+                    </a>
+                </div>`;
+            return areaDiv;
+        };
+
+        // --- Helper function to create the mobile menu link ---
+        const createMobileLink = () => {
+            const li = document.createElement('li');
+            li.className = 'link'; // Match class from other mobile menu items
+
+            // Default icon based on the user dropdown menu icons
+            const defaultIcon = `
+                <svg xmlns="http://www.w3.org/2000/svg" class="default___XXAGt" filter="" fill="#fff" stroke="transparent" stroke-width="0" width="28" height="28" viewBox="-6 -4 28 28">
+                    <path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path>
+                </svg>`;
+
+             li.innerHTML = `
+                <a href="${href}">
+                    <div class="icon-wrapper">
+                        ${svgIcon || defaultIcon}
+                    </div>
+                    <span class="link-text">${TornLibrary.utils.escapeHTML(text)}</span>
+                </a>`;
+            return li;
+        };
+
+
+        // --- Add to Desktop Sidebar ---
+        // Targets the container for the main area links (Home, Items, City, etc.)
+        TornLibrary.dom.onElementReady('div.areas-desktop___mqYu6', (areasContainer) => {
+            const desktopLink = createDesktopLink();
+            areasContainer.appendChild(desktopLink);
+        });
+
+
+        // --- Add to Mobile Menu ---
+        // NOTE: The mobile menu is rendered via JavaScript after a user clicks the menu icon.
+        // `onElementReady` will wait for it to appear. This selector is a robust guess based on
+        // how Torn typically structures its mobile interface.
+        TornLibrary.dom.onElementReady('.mobile-menu__content .links-list', (menuList) => {
+            const mobileLink = createMobileLink();
+            
+            // Try to insert the new link before the 'Logout' button for a clean look.
+            const logoutLink = menuList.querySelector('a[href^="logout.php"]');
+            const logoutLi = logoutLink ? logoutLink.closest('li') : null;
+
+            if (logoutLi && logoutLi.parentElement === menuList) {
+                 menuList.insertBefore(mobileLink, logoutLi);
+            } else {
+                // Fallback if the logout link isn't found for some reason.
+                menuList.appendChild(mobileLink);
+            }
+        });
+    }
+};
+
+/**
+ * @namespace TornLibrary.page.racing
+ * @description Helpers for the racing page (torn.com/loader.php?sid=racing).
+ */
+TornLibrary.page.racing = {
+    /**
+     * Gets a list of drivers and their details from the current race view.
+     * @returns {Array<{name: string, car: string, userId: string}>|null} An array of driver objects, or null if not on a race page or if the leaderboard isn't visible.
+     */
+    getDrivers: () => {
+        if (TornLibrary.page.currentPage() !== 'racing') {
+            return null;
+        }
+
+        const drivers = [];
+        const driverElements = document.querySelectorAll('#leaderBoard > li');
+
+        if (!driverElements || driverElements.length === 0) {
+            console.warn("TornLibrary.page.racing.getDrivers: Could not find driver elements on the page. You may not be in a race lobby or the page structure has changed.");
+            return null;
+        }
+
+        driverElements.forEach(el => {
+            const nameEl = el.querySelector('.name span');
+            const carImgEl = el.querySelector('.car img');
+            const userIdMatch = el.id.match(/lbr-(\d+)/);
+
+            if (nameEl && carImgEl && userIdMatch) {
+                drivers.push({
+                    name: nameEl.textContent.trim(),
+                    car: carImgEl.getAttribute('title') || 'Unknown Car',
+                    userId: userIdMatch[1]
+                });
+            }
+        });
+
+        return drivers.length > 0 ? drivers : null;
     }
 };
