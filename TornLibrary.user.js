@@ -1914,12 +1914,12 @@ TornLibrary.page = {
  * @description Functions for interacting with elements common to most Torn pages.
  */
 TornLibrary.page.common = {
-    _linkAdded: false, // Universal flag to prevent adding any link more than once.
+    _mobileLinkAdded: false, // Flag to prevent adding the mobile link multiple times.
 
     /**
-     * Adds a new link to the appropriate menu (sidebar for desktop, bottom swiper for mobile).
-     * This function is responsive-aware. It waits for the main sidebar container and then
-     * checks its class to determine which link to add.
+     * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
+     * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
+     * This function is responsive-aware and robust.
      *
      * @param {object} options - The options for the new link.
      * @param {string} options.text - The label for the link (e.g., 'My Script').
@@ -1927,10 +1927,11 @@ TornLibrary.page.common = {
      * @param {string} [options.svgIcon] - A string containing an SVG for the icon. A default is provided if omitted.
      */
     addMenuLink: function({ text, href, svgIcon }) {
+
         // --- Helper: Creates the desktop link HTML ---
         const createDesktopLink = () => {
             const areaDiv = document.createElement('div');
-            areaDiv.className = 'area-desktop___bpqAS';
+            areaDiv.className = 'area-desktop___bpqAS'; // This is the wrapper for a single link
             const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
             areaDiv.innerHTML = `
                 <div class="area-row___iBD8N">
@@ -1960,24 +1961,44 @@ TornLibrary.page.common = {
         };
 
         // --- SINGLE, ROBUST LOGIC ---
-        // We wait for the sidebar container itself. Once it exists, we inspect its classes
-        // to determine the current layout mode.
+        // Wait for the sidebar container itself. Its class tells us the layout mode.
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
-            if (this._linkAdded) return;
-
-            // Check for the desktop-specific class on the sidebar.
+            // Check for the desktop-specific class.
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
-                const areasContainer = sidebarElement.querySelector('div.areas-desktop___mqYu6');
-                if (areasContainer) {
-                    areasContainer.appendChild(createDesktopLink());
-                    this._linkAdded = true;
+                // Find or create the "Scripts" header and link container.
+                let scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
+
+                if (!scriptsLinkContainer) {
+                    const parentContainer = sidebarElement.querySelector('.sidebar-block___Ef1l1 .content___wSUdj');
+                    if (!parentContainer) return; // Should not happen, but a good safeguard.
+
+                    const scriptSectionWrapper = document.createElement('div');
+                    scriptSectionWrapper.className = 'toggle-block___oKpdF'; // Matches "Areas" and "Lists"
+                    scriptSectionWrapper.innerHTML = `
+                        <div class="header___RpWar desktop___ei8Er">
+                            <h2 class="title___XfwKa">Scripts</h2>
+                        </div>
+                        <div class="toggle-content___BJ9Q9" id="tl-scripts-links-container">
+                            <!-- Script links will be inserted here -->
+                        </div>`;
+                    
+                    parentContainer.appendChild(scriptSectionWrapper);
+                    scriptsLinkContainer = document.getElementById('tl-scripts-links-container');
                 }
-            // Check for the mobile-specific class on the sidebar.
+
+                // Add the new link to our custom section.
+                if (scriptsLinkContainer) {
+                    scriptsLinkContainer.appendChild(createDesktopLink());
+                }
+            
+            // Check for the mobile-specific class.
             } else if (sidebarElement.classList.contains('mobile___s55hz')) {
+                if (this._mobileLinkAdded) return; // Prevent duplicates on mobile.
+
                 const swiperWrapper = sidebarElement.querySelector('.swiper-wrapper.swiper___DGw8D');
                 if (swiperWrapper) {
                     swiperWrapper.appendChild(createMobileLink());
-                    this._linkAdded = true;
+                    this._mobileLinkAdded = true;
                 }
             }
         });
