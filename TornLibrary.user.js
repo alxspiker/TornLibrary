@@ -1954,8 +1954,8 @@ TornLibrary.page.common = {
                     scriptsSection.className = 'sidebar-block___Ef1l1 desktop___aYLqo';
                     scriptsSection.innerHTML = `<div class="content___wSUdj"><div class="toggle-block___oKpdF"><div class="header___RpWar desktop___ei8Er"><h2 class="title___XfwKa">Scripts</h2></div><div class="toggle-content___BJ9Q9" id="tl-scripts-links-container"></div></div></div>`;
                     const footerMenu = sidebarElement.querySelector('.footer-menu___sjBQ2');
-                    if (footerMenu) {
-                        sidebarElement.insertBefore(scriptsSection, footerMenu);
+                    if (footerMenu && footerMenu.parentNode) {
+                        footerMenu.parentNode.insertBefore(scriptsSection, footerMenu);
                     } else {
                         sidebarElement.appendChild(scriptsSection);
                     }
