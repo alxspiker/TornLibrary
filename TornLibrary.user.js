@@ -1918,11 +1918,51 @@ TornLibrary.page.common = {
     _mobileLinkAdded: false,
 
     /**
+     * Internal helper to find a menu link container and its anchor tag by text content.
+     * @private
+     */
+    _findMenuLink: function(name, callback) {
+        TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
+            const lowerCaseName = name.toLowerCase().trim();
+            let found = false;
+
+            // Search desktop sidebar
+            sidebarElement.querySelectorAll('.area-desktop___bpqAS').forEach(container => {
+                const linkNameEl = container.querySelector('.linkName___FoKha');
+                if (linkNameEl && linkNameEl.textContent.trim().toLowerCase() === lowerCaseName) {
+                    callback(container, container.querySelector('a.desktopLink___SG2RU'));
+                    found = true;
+                }
+            });
+
+            // Search mobile swiper menu
+            sidebarElement.querySelectorAll('.area-mobile___BH0Ku').forEach(container => {
+                const linkNameEl = container.querySelector('a > span:last-child');
+                if (linkNameEl && linkNameEl.textContent.trim().toLowerCase() === lowerCaseName) {
+                    callback(container.closest('.swiper-slide'), container.querySelector('a.mobileLink___xTgRa'));
+                    found = true;
+                }
+            });
+
+            if (!found) {
+                console.warn(`[TornLibrary.page.common] Could not find a menu link with the name "${name}".`);
+            }
+        });
+    },
+
+    /**
      * Adds a new link to the appropriate menu. On desktop, it creates a dedicated "Scripts"
      * section if one doesn't exist. On mobile, it adds the link to the bottom icon carousel.
+     * @param {object} options - The options for the new link.
+     * @param {string} options.text - The label for the link.
+     * @param {string} [options.href='#'] - The URL the link should point to. Ignored if onClick is provided.
+     * @param {function(Event): void} [options.onClick] - A function to run when the link is clicked.
+     * @param {string} [options.svgIcon] - A string containing an SVG for the icon.
      */
-    addMenuLink: function({ text, href, svgIcon }) {
+    addMenuLink: function({ text, href = '#', onClick, svgIcon }) {
         if (this._linkAdded && this._mobileLinkAdded) return;
+        
+        const effectiveHref = onClick ? 'javascript:void(0);' : href;
 
         TornLibrary.dom.onElementReady('#sidebar', (sidebarElement) => {
             if (sidebarElement.classList.contains('desktop___lmVhy')) {
@@ -1940,7 +1980,8 @@ TornLibrary.page.common = {
                     const desktopLink = document.createElement('div');
                     desktopLink.className = 'area-desktop___bpqAS';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="16" height="16" viewBox="0 0 16 16"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1Zm0,12.25A5.25,5.25,0,1,1,13.25,8,5.25,5.25,0,0,1,8,13.25ZM8.5,4.5v4H11V10H7V4.5Z"></path></svg>`;
-                    desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${href}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
+                    desktopLink.innerHTML = `<div class="area-row___iBD8N"><a href="${effectiveHref}" class="desktopLink___SG2RU"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span class="linkName___FoKha">${TornLibrary.utils.escapeHTML(text)}</span></a></div>`;
+                    if (onClick) { desktopLink.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
                     scriptsLinkContainer.appendChild(desktopLink);
                 }
                 this._linkAdded = true;
@@ -1951,7 +1992,8 @@ TornLibrary.page.common = {
                     const mobileLink = document.createElement('div');
                     mobileLink.className = 'swiper-slide slide___se7hj';
                     const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" stroke="transparent" stroke-width="0" width="18" height="18" viewBox="-1 0 18 18"><path d="M8,1a7,7,0,1,0,7,7A7,7,0,0,0,8,1ZM8,14.55A1.15,1.15,0,1,1,9.15,13.4,1.14,1.14,0,0,1,8,14.55Z"></path></svg>`;
-                    mobileLink.innerHTML = `<div class="area-mobile___BH0Ku"><div class="area-row___iBD8N"><a href="${href}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span>${TornLibrary.utils.escapeHTML(text)}</span></a></div></div>`;
+                    mobileLink.innerHTML = `<div class="area-mobile___BH0Ku"><div class="area-row___iBD8N"><a href="${effectiveHref}" tabindex="0" class="mobileLink___xTgRa sidebarMobileLink"><span class="svgIconWrap___AMIqR"><span class="defaultIcon___iiNis mobile___paLva">${svgIcon || defaultIcon}</span></span><span>${TornLibrary.utils.escapeHTML(text)}</span></a></div></div>`;
+                    if (onClick) { mobileLink.querySelector('a').addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
                     swiperWrapper.appendChild(mobileLink);
                     this._mobileLinkAdded = true;
                 }
@@ -1960,16 +2002,59 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new status icon to the user information panel (desktop and mobile).
+     * Shows or hides an existing menu link by its text.
+     * @param {string} name - The text of the link to modify (e.g., 'Casino', 'Items'). Case-insensitive.
+     * @param {boolean} isVisible - `true` to show the link, `false` to hide it.
      */
-    addStatusIcon: function({ id, className, label, href = '#' }) {
+    setMenuLinkVisible: function(name, isVisible) {
+        this._findMenuLink(name, (container, link) => {
+            container.style.display = isVisible ? '' : 'none';
+        });
+    },
+
+    /**
+     * Overrides the behavior of an existing menu link.
+     * @param {string} name - The text of the link to modify (e.g., 'Home', 'Gym'). Case-insensitive.
+     * @param {object} options - The new properties for the link.
+     * @param {string} [options.href] - The new URL for the link. Ignored if onClick is provided.
+     * @param {function(Event): void} [options.onClick] - A new function to run on click.
+     */
+    overrideMenuLink: function(name, { href, onClick }) {
+        this._findMenuLink(name, (container, link) => {
+            if (!link) return;
+            if (!link.dataset.tlOverridden) { // Prevent adding multiple listeners
+                if (onClick) {
+                    link.href = 'javascript:void(0);';
+                    link.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        onClick(e);
+                    });
+                } else if (href) {
+                    link.href = href;
+                }
+                link.dataset.tlOverridden = 'true';
+            }
+        });
+    },
+
+    /**
+     * Adds a new status icon to the user information panel (desktop and mobile).
+     * @param {object} options - The options for the new icon.
+     * @param {string} options.id - A unique ID for the new icon element.
+     * @param {string} options.className - A custom class name to style your icon.
+     * @param {string} options.label - The tooltip text that appears on hover.
+     * @param {string} [options.href='#'] - The URL the icon should link to.
+     * @param {function(Event): void} [options.onClick] - A function to run when the icon is clicked.
+     */
+    addStatusIcon: function({ id, className, label, href = '#', onClick }) {
         TornLibrary.dom.onElementReady('ul.status-icons___gPkXF', (iconList) => {
             if (document.getElementById(id)) return;
             const li = document.createElement('li');
             li.id = id;
             li.className = className;
             const a = document.createElement('a');
-            a.href = href;
+            a.href = onClick ? 'javascript:void(0);' : href;
+            if (onClick) { a.addEventListener('click', (e) => { e.preventDefault(); onClick(e); }); }
             a.setAttribute('aria-label', label);
             a.tabIndex = 0;
             li.appendChild(a);
@@ -1978,32 +2063,35 @@ TornLibrary.page.common = {
     },
 
     /**
-     * Adds a new text-based stat row (like Name or Level) to the user panel.
+     * Adds a new text-based stat row (like Name or Level) to the user panel. (Desktop only).
+     * @param {object} options - The options for the new row.
+     * @param {string} options.id - A unique ID for the new row element.
+     * @param {string} options.label - The text label for the row.
+     * @param {string} options.value - The value, which can be plain text or HTML.
      */
     addTextStat: function({ id, label, value }) {
-        TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
-             if (document.getElementById(id)) return;
-
-             if(sidebar.classList.contains('desktop___lmVhy')) {
-                const pointsContainer = sidebar.querySelector('div.points___UO9AU');
-                if(!pointsContainer) return;
-                const p = document.createElement('p');
-                p.id = id;
-                p.className = 'menu-info-row___YG31c';
-                p.innerHTML = `<span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span><span class="menu-value___gLaLR">${value}</span>`;
-                pointsContainer.insertAdjacentElement('afterend', p);
-             }
+        TornLibrary.dom.onElementReady('div.points___UO9AU', (pointsContainer) => {
+            if (document.getElementById(id)) return;
+            const p = document.createElement('p');
+            p.id = id;
+            p.className = 'menu-info-row___YG31c';
+            p.innerHTML = `<span class="menu-name___DvWEr">${TornLibrary.utils.escapeHTML(label)}:</span><span class="menu-value___gLaLR">${value}</span>`;
+            pointsContainer.insertAdjacentElement('afterend', p);
         });
     },
 
     /**
      * Adds a new numerical stat block with an icon (like Money or Points) to the user panel.
+     * @param {object} options - The options for the new block.
+     * @param {string} options.id - A unique ID for the new block element.
+     * @param {string} options.label - The text label for the block.
+     * @param {string} options.value - The value to display.
+     * @param {string} [options.svgIcon] - An SVG string for the mobile icon. A default is provided.
      */
     addIconStat: function({ id, label, value, svgIcon }) {
-        TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
+         TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
             if (document.getElementById(id)) return;
-
-            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke="#fff" stroke-width="0" width="19" height="19" viewBox="0 0 19 19"><path d="M9.5,3A6.5,6.5,0,0,0,3,9.5a6.5,6.5,0,0,0,6.5,6.5,6.5,6.5,0,0,0,6.5-6.5A6.5,6.5,0,0,0,9.5,3Zm0,12A5.5,5.5,0,0,1,4,9.5,5.5,5.5,0,0,1,9.5,4,5.5,5.5,0,0,1,15,9.5,5.5,5.5,0,0,1,9.5,15ZM10,5H9v5h5V9H10Z"></path></svg>`;
+            const defaultIcon = `<svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke="#fff" stroke-width="0" width="19" height="19" viewBox="0 0 24 24"><path d="M20 18c1.1 0 1.99-.9 1.99-2L22 6c0-1.1-.9-2-2-2H4c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2H0v2h24v-2h-4zM4 6h16v10H4V6z"/></svg>`;
 
             if(sidebar.classList.contains('desktop___lmVhy')) {
                 const pointsContainer = sidebar.querySelector('div.points___UO9AU');
@@ -2030,6 +2118,13 @@ TornLibrary.page.common = {
 
     /**
      * Adds a new progress bar (like Energy or Nerve) to the user panel.
+     * @param {object} options - The options for the new bar.
+     * @param {string} options.id - A unique ID for the new bar element.
+     * @param {string} options.label - The name of the bar.
+     * @param {number} options.current - The current value.
+     * @param {number} options.max - The maximum value.
+     * @param {string} [options.timer=''] - The countdown text to display.
+     * @param {string} [options.colorClass='energy___hsTnO'] - The class that determines the bar's color.
      */
     addInfoBar: function({ id, label, current, max, timer = '', colorClass = 'energy___hsTnO' }) {
         TornLibrary.dom.onElementReady('#sidebar', (sidebar) => {
@@ -2039,43 +2134,16 @@ TornLibrary.page.common = {
             if(sidebar.classList.contains('desktop___lmVhy')) {
                 const barContainer = sidebar.querySelector('.content___GVtZ_ > div:last-child');
                 if(!barContainer) return;
-
                 const a = document.createElement('a');
-                a.id = id;
-                a.href = '#';
-                a.className = `bar___Bv5Ho ${colorClass} bar-desktop___p5Cas`;
-                a.tabIndex = 0;
-                a.innerHTML = `
-                    <div class="bar-stats____l994">
-                        <p class="bar-name___cHBD8">${TornLibrary.utils.escapeHTML(label)}:</p>
-                        <p class="bar-value___NTdce">${current}/${max}</p>
-                        <p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>
-                    </div>
-                    <div class="progress___z5tk3">
-                        <div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div>
-                        <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
-                    </div>`;
+                a.id = id; a.href = '#'; a.className = `bar___Bv5Ho ${colorClass} bar-desktop___p5Cas`; a.tabIndex = 0;
+                a.innerHTML = `<div class="bar-stats____l994"><p class="bar-name___cHBD8">${TornLibrary.utils.escapeHTML(label)}:</p><p class="bar-value___NTdce">${current}/${max}</p><p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p></div><div class="progress___z5tk3"><div class="progress-line-timer___uV1ZZ" style="width: 0%;"></div><div class="progress-line___FhcBg" style="width: ${percentage}%;"></div></div>`;
                 barContainer.appendChild(a);
-
             } else if (sidebar.classList.contains('mobile___s55hz')) {
                 const barContainer = sidebar.querySelector('.bars-mobile___PDyjE');
                 if(!barContainer) return;
-
                 const a = document.createElement('a');
-                a.id = id;
-                a.href = '#';
-                a.className = `bar___Bv5Ho ${colorClass} bar-mobile___yMict`;
-                a.tabIndex = 0;
-                a.innerHTML = `
-                    <div class="bar-stats____l994 bar-stats-flex___zntBu">
-                        <i class="svg-icon-wrap___kBbPN"><svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke-width="0" width="11" height="11" viewBox="4.5 5 11 11"><path d="M123,330l1-5h-4l7-6-1,5h4Z" transform="translate(-115 -314)"></path></svg></i>
-                        <p class="wai">${TornLibrary.utils.escapeHTML(label)}:</p>
-                        <p class="bar-value___NTdce">${current} / ${max}</p>
-                        <span class="barDescWrapper___cXLqn">(<p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>)</span>
-                    </div>
-                    <div class="progress___z5tk3">
-                        <div class="progress-line___FhcBg" style="width: ${percentage}%;"></div>
-                    </div>`;
+                a.id = id; a.href = '#'; a.className = `bar___Bv5Ho ${colorClass} bar-mobile___yMict`; a.tabIndex = 0;
+                a.innerHTML = `<div class="bar-stats____l994 bar-stats-flex___zntBu"><i class="svg-icon-wrap___kBbPN"><svg xmlns="http://www.w3.org/2000/svg" fill="#fff" stroke-width="0" width="11" height="11" viewBox="4.5 5 11 11"><path d="M123,330l1-5h-4l7-6-1,5h4Z" transform="translate(-115 -314)"></path></svg></i><p class="wai">${TornLibrary.utils.escapeHTML(label)}:</p><p class="bar-value___NTdce">${current} / ${max}</p><span class="barDescWrapper___cXLqn">(<p class="bar-descr___muXn5">${TornLibrary.utils.escapeHTML(timer)}</p>)</span></div><div class="progress___z5tk3"><div class="progress-line___FhcBg" style="width: ${percentage}%;"></div></div>`;
                 barContainer.appendChild(a);
             }
         });
